@@ -1,5 +1,13 @@
 # Local pilot evidence — 28 October 2026
 
+## Version 0.3.9: respond to creator concerns before continuing
+
+PASS: reproduced the actual pacing defect before the fix: a useful answer to a creator's concern, ending in a relevant follow-up question, was replaced with the generic outline-ready instruction. The response contract now distinguishes discussion from normal progress. Concern/question replies survive the stage templates, pause readiness and preserve the existing manuscript; proposed brief/outline corrections remain reviewable. Both shared interview/craft skills explicitly require specific, supportive, honest concern-first responses without sales promises.
+
+PASS: combined suite **221/221** at exact source **fc87b347d2a5e8d90bc7c7ccf8fed780b06cc068**, accepted by one independent review with five focused concern cases passing. New regressions cover mixed correction/question input, insecurity without a question mark, drafting/packaging pause, format-choice discussion and guidance for both providers. The first combined run caught an outdated health-version assertion; it was aligned before the passing combined acceptance.
+
+PASS: actual existing Windows creator project through the normal composer, subscribed **GPT-6.1 Sol · Medium**. Repeating the creator's original message now produced a direct response to both the technical correction and willingness-to-pay concern, clarified the proposed backend outline, distinguished demonstrated implementation from unvalidated demand and suggested a small pilot-interest test. The app remained at stage8 without a Continue prompt or a new manuscript. Conversation, preferences and exact model/quality were retained. No private transcript was committed. Native eligible Claude and macOS behavior remain UNRUN; prior native-cloud delivery limitations are unchanged.
+
 ## Version 0.3.8: Canva and Google Docs destinations, Office-free local files
 
 PASS: combined suite **216/216** at exact source **36e07f4c3034672eb1397c628c65169a54a98f22**, with one independent review and correction-only acceptance. The browser requires runtime0.3.8 before exposing delivery actions, preserving all project and preference state. Public downloads and sale ZIPs contain PDF and Markdown/plain text, never Office files or private checkpoints. Office input references remain supported. Internal Canva transfer serialization is not a public download or a completed native delivery.

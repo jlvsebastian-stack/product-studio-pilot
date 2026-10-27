@@ -9,6 +9,7 @@ const readSkill=name=>readFileSync(new URL(`../skills/${name}/SKILL.md`,import.m
 const category=z.enum(['voice','design','workflow']),source=z.enum(['explicit','inferred']);
 const shortText=z.string().min(1).max(1200);
 export const interviewResponseSchema=z.object({
+  replyKind:z.enum(['progress','discussion']).default('progress'),
   message:z.string().min(1).max(30000),stageReady:z.boolean(),summary:z.string().max(12000),brief:briefSchema,
   suggestions:z.array(z.object({title:shortText,why:shortText,basis:shortText}).strict()).max(4).default([]),
   preferenceUpdates:z.array(z.object({text:z.string().min(1).max(2000),category,source,evidence:z.string().min(1).max(2000)}).strict()).max(8).default([]),
@@ -17,6 +18,7 @@ export const interviewResponseSchema=z.object({
 const objectSchema=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const stringFields=keys=>Object.fromEntries(keys.map(key=>[key,{type:'string'}]));
 export const responseJsonSchema=objectSchema({
+  replyKind:{type:'string',enum:['progress','discussion']},
   message:{type:'string'},stageReady:{type:'boolean'},summary:{type:'string'},brief:objectSchema(stringFields(briefKeys)),
   suggestions:{type:'array',maxItems:4,items:objectSchema(stringFields(['title','why','basis']))},
   preferenceUpdates:{type:'array',maxItems:8,items:objectSchema({...stringFields(['text','evidence']),category:{type:'string',enum:['voice','design','workflow']},source:{type:'string',enum:['explicit','inferred']}})},
@@ -67,6 +69,7 @@ The conversation is happening INSIDE this application. Do not tell the human to 
 Follow the creator-interview and applicable craft skills below. Start with the smallest useful baseline, reuse earlier answers, then propose the next decision or create the next output. Ask at most one easy, indispensable question only if its answer changes that output. EVERY question must explicitly explain what its answer will help choose, write or improve in this product: name the relevant offer, outline, lesson, section, example or exercise. Do not ask out of personal curiosity, repeat answered questions, or demand exact remembered wording, anecdotes, mistakes or a full method before proceeding. Do not invent the creator's experience.
 Be a cheerful, supportive expert creation partner in the CHAT. Use natural, concise language, with brief encouragement tied to what the creator actually supplied. Reassure a first-time creator that we can work it out together, then take the useful next step. Point to visible progress in their brief, offer, outline or draft. Avoid patronizing praise, forced excitement, uniform recaps, backstage labels and research homework. Keep a good concise proposal in your own natural voice rather than reciting a template. The manuscript follows the creator's chosen tone, audience and style preferences; do not impose the chat personality on the product.
 COLLABORATION THROUGHOUT: Understand enough → suggest a direction → build something useful → get feedback → improve together. Contribute useful recommendations, reasons, research and drafts; the creator supplies experience and judgment and chooses what fits. Answer the creator's questions first with a plain explanation and a project-specific example, rather than another questionnaire. Naturally invite them to ask whenever something is unclear, at the start and unfamiliar decisions, without a repeated sign-off. If you need clarity, explain what the missing answer changes and ask one easy question with a starting option. Being unsure or asking a question is not approval to advance, expand or revise. Keep explanations in chat and preserve the creator's manuscript voice.
+TURN PRIORITY: Set replyKind to discussion when the current creator input asks a question, raises concerns or insecurity, challenges a suggestion, or needs clarification. Acknowledge the specific concern naturally, answer it using this project's known facts, and offer one practical way forward. Address all material parts of a mixed message, including technical corrections. Never promise or guarantee sales: comparable offers or a simple useful result are not proof people will pay. Explain uncertainty honestly and suggest a small validation step when relevant. Do not dismiss insecurity with empty praise, ask intrusive personal questions, repeat the stage instruction, or push Continue. Discussion keeps stageReady false and productDraft unchanged; a proposed brief or outline correction may still be recorded for review. Use progress for ordinary creator input that develops the current decision or explicitly requests the next permitted output. Do not treat a concern as permission to draft or revise.
 FORMAT CHOICE: before asking which format to choose, explain guide, checklist, template kit, workbook, course and webinar in short descriptions. For EACH, describe what this specific product would contain and how this buyer would use it, based on the known topic, outcome and offer; do not just list names. Recommend a fit with a reason when useful, then ask one choice question. Use text descriptions for this comparison, no visuals or premature manuscript. A webinar deliverable is the actual slide presentation together with per-slide presenter notes, not just a script. Its slides teach and demonstrate the topic; its notes explain what to say, demonstrate and ask the audience. Canva is the presentation destination, with native speaker notes verified page by page before returning its link; Google Docs is the written-document destination. Local PDF contains the audience-facing slides and Markdown retains all slide text and notes. Do not offer Microsoft Office downloads or require Office apps. For webinar samples and drafting, use one ## Slide title, its visible content, then ### Presenter notes with the corresponding notes. Hosting, presenting and recording happen separately. A course's teaching materials are not already-recorded lessons. A suggestion is not the creator's confirmed format.
 The app controls the stage and advances only after explicit human approval. stageReady means sufficient evidence, not a turn count. Remain at selected stage ${data.interviewStage}.
 Accumulate the confirmed brief without erasing earlier details. Explain briefly what changed in the visible brief, outline, sample or product. Keep backstage chat out of productDraft. A workbook is one format, never the process.
@@ -383,19 +386,24 @@ export async function interview(raw,providers){
   const images=data.references.filter(reference=>reference.kind==='image'&&reference.status!=='unavailable'&&reference.imageData).map(reference=>({name:reference.name,mimeType:reference.mimeType,data:reference.imageData.slice(reference.imageData.indexOf(',')+1)}));
   const options={search:data.interviewStage===5,model:data.model,reasoningEffort:data.reasoningEffort,images};
   let response=interviewResponseSchema.parse(await providers.infer(data.provider,prompt,responseJsonSchema,options));
-  if(data.interviewStage===7&&!usefulField(data.brief.format)&&!usefulField(response.brief.format)&&!describedFormats(response.message,data.brief)&&(!directExplanation(data,response)||/\b(?:guide|checklist|templates?|workbook|course|webinar)\b/i.test(response.message))){
+  if(response.replyKind!=='discussion'&&data.interviewStage===7&&!usefulField(data.brief.format)&&!usefulField(response.brief.format)&&!describedFormats(response.message,data.brief)&&(!directExplanation(data,response)||/\b(?:guide|checklist|templates?|workbook|course|webinar)\b/i.test(response.message))){
     response=interviewResponseSchema.parse(await providers.infer(data.provider,prompt+'\nFORMAT CORRECTION: The previous reply did not describe concrete contents for each format. Return the same response schema with six labeled paragraphs: Guide:, Checklist:, Template kit:, Workbook:, Course:, Webinar:. In EACH paragraph name actual proposed contents drawn from this project’s topic/outcome/offer, explain how the buyer uses them and avoid generic placeholders such as “relevant templates” or “important steps.” Finish with one format-choice question. Do not select a format, invent creator experience, draft the manuscript, or claim recording/hosting. This is one bounded rewrite, not a new interview question.',responseJsonSchema,options));
     response.brief.format=data.brief.format;
     if(!describedFormats(response.message,data.brief)){response.message=formatRetry;response.stageReady=false;}
   }
   for(const key of briefKeys)if(key!=='productDraft'&&!response.brief[key].trim()&&data.brief[key])response.brief[key]=data.brief[key];
   const rejectedReferenceClaim=protectReferenceClaims(data,response);
-  paceBaseline(data,response,!rejectedReferenceClaim);
+  const discussion=response.replyKind==='discussion';
+  if(discussion)response.brief.productDraft=data.brief.productDraft;
+  else paceBaseline(data,response,!rejectedReferenceClaim);
   protectDraft(data,response);
   response.preferenceUpdates=groundedPreferenceUpdates(response.preferenceUpdates,currentCreatorInput(data));
   response.suggestions=groundedSuggestions(response.suggestions,data);
-  completePackaging(data,response);
-  gateReadiness(data,response);
-  purposeBoundQuestions(data,response);
+  if(discussion)response.stageReady=false;
+  else{
+    completePackaging(data,response);
+    gateReadiness(data,response);
+    purposeBoundQuestions(data,response);
+  }
   return response;
 }
