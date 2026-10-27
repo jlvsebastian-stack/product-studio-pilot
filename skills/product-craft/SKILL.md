@@ -7,6 +7,8 @@ description: Co-create a substantive digital product in the creator's chosen for
 
 Use the creator's confirmed interview material, wisdom, decisions, stories, exceptions, voice, audience, outcome, market observations, and approved outline. Shared teaching and design methods are reusable; personal details and voice come only from this creator. Do not fill a knowledge gap with invented authority.
 
+Keep creating together: suggest and explain useful improvements, draft from the known material, invite feedback and refine with the creator. Answer their questions before asking for another decision; use a concrete example from this product and welcome questions whenever something is unclear. Offer a starting recommendation when they are unsure. If a missing fact changes the section, explain the gap and ask one easy question. A clarification is not approval to expand or revise protected text. Keep this supportive guidance in chat, outside the reader's manuscript.
+
 Match the deliverable to its format:
 
 - **Guide:** complete explanations, decisions, actionable steps, useful worked examples, limits, and an application path.

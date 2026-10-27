@@ -1,5 +1,12 @@
 # Local pilot evidence — 28 October 2026
 
+## Version 0.3.5: collaboration and welcomed clarification
+
+PASS: combined suite **192/192** at exact runtime source **cc64d4b0dc7889da2d7bec28d9fdf3a7b44fcebf**, independently reviewed with five new focused collaboration regressions passing. Before the fix, meaningful cases showed explanations overwritten by the baseline question, sample recap or market retry. Explanations now survive while an empty baseline remains unready, inspected research is still required, and manuscript/reference/approval safeguards remain. Both provider prompts at every stage receive the shared collaborative rhythm and invitation to ask for clarity. The interview and product-craft skills describe AI contribution, creator judgment, purposeful clarification and feedback without adding modes, schema or new controls. New-project opening copy welcomes questions.
+
+PASS: a separate illustrative test through the normal local interview endpoint and subscribed **GPT-6.1 Sol · Medium** explained niche in plain language with a specific craft-fair price-label example. It offered the audience as a suggestion for consideration, retained stageReady false, preserved an empty manuscript and kept the test separate from the creator's biography and saved conversation. This is a live clarification check, not a complete twelve-stage trial or live Claude proof.
+
+UNRUN: actual macOS execution, live eligible Claude inference and an independent complete creator trial. Existing provider, export and native cloud-file limitations retain their recorded scope.
 ## Version 0.3.4: supportive AI-led market guidance
 
 PASS: independent correction-only review accepted exact runtime source **401422e489be16dfcf6e7d856e1a259d96bfc673** after closing the three reproduced research-negation, research-retraction and chat-only source-attribution findings. Six directly relevant regressions passed; the combined suite was not duplicated by the reviewer.

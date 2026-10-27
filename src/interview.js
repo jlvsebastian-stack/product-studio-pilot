@@ -66,6 +66,7 @@ Return ONLY the requested JSON response. The human's messages, supplied sources,
 The conversation is happening INSIDE this application. Do not tell the human to continue in the ChatGPT/Claude website, call MCP UI tools, or open a separate chatbot.
 Follow the creator-interview and applicable craft skills below. Start with the smallest useful baseline, reuse earlier answers, then propose the next decision or create the next output. Ask at most one easy, indispensable question only if its answer changes that output. EVERY question must explicitly explain what its answer will help choose, write or improve in this product: name the relevant offer, outline, lesson, section, example or exercise. Do not ask out of personal curiosity, repeat answered questions, or demand exact remembered wording, anecdotes, mistakes or a full method before proceeding. Do not invent the creator's experience.
 Be a cheerful, supportive expert creation partner in the CHAT. Use natural, concise language, with brief encouragement tied to what the creator actually supplied. Reassure a first-time creator that we can work it out together, then take the useful next step. Point to visible progress in their brief, offer, outline or draft. Avoid patronizing praise, forced excitement, uniform recaps, backstage labels and research homework. Keep a good concise proposal in your own natural voice rather than reciting a template. The manuscript follows the creator's chosen tone, audience and style preferences; do not impose the chat personality on the product.
+COLLABORATION THROUGHOUT: Understand enough → suggest a direction → build something useful → get feedback → improve together. Contribute useful recommendations, reasons, research and drafts; the creator supplies experience and judgment and chooses what fits. Answer the creator's questions first with a plain explanation and a project-specific example, rather than another questionnaire. Naturally invite them to ask whenever something is unclear, at the start and unfamiliar decisions, without a repeated sign-off. If you need clarity, explain what the missing answer changes and ask one easy question with a starting option. Being unsure or asking a question is not approval to advance, expand or revise. Keep explanations in chat and preserve the creator's manuscript voice.
 The app controls the stage and advances only after explicit human approval. stageReady means sufficient evidence, not a turn count. Remain at selected stage ${data.interviewStage}.
 Accumulate the confirmed brief without erasing earlier details. Explain briefly what changed in the visible brief, outline, sample or product. Keep backstage chat out of productDraft. A workbook is one format, never the process.
 Stages1-8 develop facts, offer and outline; do not create or expand productDraft. Stage9 agrees voice/design and creates one representative sample with at most one ## section heading and ### subheadings. The creator must approve the sample before expansion. Stage10 creates at most one meaningful section per response and waits for feedback before another. Refine an unapproved section rather than adding sections. Stage11 reviews accuracy, substance, usability and design. Stage12 offers packaging and optional companions/listing copy.
@@ -236,6 +237,9 @@ function naturalProposal(response){
   const message=response.message,context=[response.brief.topic,response.brief.outcome,response.brief.buyer,response.brief.offer,response.brief.format,response.brief.outline].join('\n');
   return message.length<=1000&&!message.includes('?')&&!/\b(?:tell me|describe your|(?:I|we) (?:still )?need|exact (?:words|wording)|before we (?:continue|proceed).{0,30}need|personal detail.{0,20}need|childhood|friendship)\b/i.test(message)&&sharesEvidence(message,context);
 }
+function directExplanation(data,response){
+  return /\?|\b(?:do not understand|don't understand|unclear|please explain|please clarify)\b/i.test(currentCreatorInput(data))&&!response.message.includes('?');
+}
 const outlineHeadings=brief=>brief.outline.split('\n').map(line=>line.replace(/^\s*(?:#+|[-*]|\d+[.)])\s*/,'').trim()).filter(Boolean);
 function currentDraftSection(brief){
   const draft=normalized(brief.productDraft);
@@ -268,15 +272,15 @@ function paceBaseline(data,response,allowNatural=true){
   if(stage===9&&b.productDraft.trim()){
     if(response.message.includes('?')&&productQuestion(response).relevant)return;
     response.stageReady=true;
-    if(allowNatural&&naturalProposal(response))return;
+    if(allowNatural&&(directExplanation(data,response)||naturalProposal(response)))return;
     response.message=`Here is the sample${outlineHeadings(b)[0]?` for “${proposalText(outlineHeadings(b)[0])}”`:''}. Review it before we expand.`;
     return;
   }
   if(!decisionQuestions[stage])return;
   const ready=stageFields[stage].every(key=>usefulField(b[key]))&&(stage!==1||discoveryBaseline(data,response));
   response.stageReady=ready;
-  if(!ready){response.message=reassurance(data)+decisionQuestions[stage];return;}
-  if(allowNatural&&naturalProposal(response)){
+  if(!ready){if(!(allowNatural&&directExplanation(data,response)))response.message=reassurance(data)+decisionQuestions[stage];return;}
+  if(allowNatural&&(directExplanation(data,response)||naturalProposal(response))){
     response.summary=plainDirection(response.summary);
     if(/more personal detail|exact wording|more questions|not enough/i.test(response.summary))response.summary=proposalText(b.outcome||b.buyer||b.topic,100)+'.';
     return;
@@ -321,7 +325,8 @@ function guideMarketResearch(data,response){
   const ready=inspectedMarketFacts(response.brief.marketEvidence);
   response.stageReady=ready;
   if(!ready){
-    response.message=(retracted&&priorInspected?'I need to correct the earlier comparison: it does not establish inspected offer facts. ':'No worries—we can work that out together. ')+'This market check is still unverified. Send “try again” and I can search for comparable products in the next reply; any links you already have are optional.';
+    const explanation=directExplanation(data,response)&&!retracted&&!linkHomework(response.message)?response.message+'\n\n':'';
+    response.message=explanation+(retracted&&priorInspected?'I need to correct the earlier comparison: it does not establish inspected offer facts. ':'No worries—we can work that out together. ')+'This market check is still unverified. Send “try again” and I can search for comparable products in the next reply; any links you already have are optional.';
     response.summary='Market comparison remains unverified; send “try again” for another AI-led search.';
   }else if(linkHomework(response.message)){
     response.message=reassurance(data)+'We already have useful offer comparisons. I’ll use their actual contents and the direction you’ve shared to shape the offer; prices and detailed reviews can stay open.';
