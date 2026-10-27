@@ -120,7 +120,7 @@ test('login starts only explicit vendor sign-in and reuses an ongoing attempt',a
 });
 test('interview uses real skills, preserves context and prevents invented market readiness',async()=>{
   const p=payload();const built=interviewPrompt(p);
-  assert.match(built.prompt,/Ask one focused question/);assert.match(built.prompt,/INSIDE this application/);assert.match(built.prompt,/I know marketing/);
+  assert.match(built.prompt,/name: creator-interview/);assert.doesNotMatch(built.prompt,/Ask one focused question/);assert.match(built.prompt,/INSIDE this application/);assert.match(built.prompt,/I know marketing/);
   p.interviewStage=5;const result=await interview(p,{infer:async(_,prompt,schema,options)=>{assert.equal(options.search,true);return {...reply(),stageReady:true};}});
   assert.equal(result.stageReady,false);assert.match(result.message,/unverified/);
   p.interviewStage=13;assert.throws(()=>interviewPrompt(p));

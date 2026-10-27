@@ -1,5 +1,17 @@
 # Local pilot evidence — 27 October 2026
 
+## Version 0.3.3: purposeful baseline-first creation
+
+PASS: final combined suite **171/171** at runtime source **1f9580108480639eef827d3ab6d0d2ccd7648391**, with independent correction review accepting that exact source. Covers minimum baseline readiness against overprobing model replies, reuse of known planning facts, purposeful missing-core questions, faithful topic paraphrases, source-only and persisted-source claim exclusion, concise proposals, natural stage approval text, proposed style defaults and preserved sample/section/market controls. Meaningful factual clarification survives wording changes and valid draft corrections; unrelated personal tangents are not legitimized by a generic purpose prefix.
+
+PASS: real isolated localhost interview through subscribed **GPT-6.1 Sol · Medium**. One short answer about helping first-time craft sellers choose stock and make price labels produced a proposed starting direction and the normal approval/continue action. It did not demand a personal case, a remembered ad hook, mistakes or limits. The opening question explained that the answer helps choose the product topic. This was an illustrative test persona, separate from the creator's saved conversation.
+
+PASS: approving that direction reused the supplied knowledge to propose a concrete stock-and-price-label outcome without asking another personal question. A fresh baseline test also showed the corrected concise proposal and short decision summary. Those positive planning branches are unchanged by the final factual-question correction. No private creator transcript was committed, and the main creator project and selected Sol Medium setting were retained.
+
+PASS: a separate real stage9 request through the same local app and Sol Medium produced a 2,086-character representative guide section with one section heading, practical steps, a clearly labeled illustrative example and a working stock-list table. It applied proposed readable design/voice defaults and asked no additional interview question before presenting the sample for review. It did not create market proof or bypass sample approval. Export rendering is unchanged and was not repeated for this conversation-only change.
+
+UNRUN: an independent real creator completing all twelve stages with the shortened flow, live eligible Claude inference and actual macOS execution. Existing model-selection, reference, file and cloud-creation evidence retains its recorded version scope.
+
 ## Version 0.3.2: preserve model choice and verify access
 
 PASS: meaningful native before/after check using the exact same subscription-only provider adapter, model gpt-6.1-sol and High quality. Bundled official Codex0.157.1 returned model_not_found; updated official Codex0.164.0 returned the requested structured success. No account reset, credential read, authentication change, API route, permission change, model substitution or lower quality was needed. The earlier rejection does not establish that this account lacks Sol access.

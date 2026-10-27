@@ -10,7 +10,7 @@ export function currentDraftSection(project){
   return {heading:heading?.[1]||source.match(/^#\s+([^\n]+)/)?.[1]||'Current draft',text:source.slice(heading?.index??0),pending};
 }
 export function acceptSampleFiles(project,files,requestKey,currentKey){if(requestKey!==currentKey)return false;project.sampleFiles=files;project.sampleFingerprint=requestKey;return true;}
-export const FIRST='We’ll find something useful in your experience and build it together, one decision at a time. What do people come to you for help with, or what could you talk about for hours?';
+export const FIRST='To choose a useful topic for your course or digital product, what practical thing do people ask you for help with? We’ll use that as our starting point and build from there.';
 const briefKeys=['title','topic','buyer','outcome','method','example','limits','author','tone','theme','niche','marketEvidence','offer','format','outline','design','designPlan','listingCopy','productDraft'];
 export const blankBrief=()=>Object.fromEntries(briefKeys.map(k=>[k,k==='theme'?'clay':'']));
 const id=()=>globalThis.crypto?.randomUUID?.()||`project-${Date.now()}-${Math.random().toString(36).slice(2)}`;

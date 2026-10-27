@@ -145,7 +145,7 @@ async function advance(){
   if(state.interviewStage>=10&&(!state.brief.productDraft.trim()||state.approvedDraft!==state.brief.productDraft)){view='draft';render();schedulePreview();notice('Review and approve the current section before continuing.',true);return;}
   state.notes.push({stage:state.interviewStage,title:STAGES[state.interviewStage-1][0],summary:state.summary});state.interviewStage++;state.stageReady=false;state.summary='';save();
   if(state.interviewStage===12){view='files';render();schedulePreview();await prepareCompletion();return;}
-  await send(`I approve that direction. Let’s work on step ${state.interviewStage}: ${STAGES[state.interviewStage-1][0]}. Ask me the most useful next question, using what you already know.`);
+  await send('I approve this direction. Let’s continue.');
 }
 async function prepareCompletion(){await send('We have reached the file stage. Keep the approved manuscript exactly unchanged. Prepare grounded listing copy and relevant optional companion product ideas based on this product and its buyer. Do not create an extra product or invent market evidence or results.',false,{completion:true});}
 async function exportSample(){
