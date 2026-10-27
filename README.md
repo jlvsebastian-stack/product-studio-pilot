@@ -1,60 +1,34 @@
-# Product Studio — private ChatGPT pilot
+# Product Studio — local pilot
 
-A conversation with an expert, supportive interviewer that helps a creator turn their own knowledge, judgment, and experience into a useful digital product. A workbook is one possible output; it is not the creation process.
+Download from GitHub, launch on your computer, and complete the whole interview inside Product Studio. Each person uses their own ChatGPT subscription through official Codex, or their own Claude subscription through official Claude Code. This is independent of KKY and needs no hosted backend or shared AI account.
 
-This is an independent project. It has no KKY code, accounts, database, deployment, or runtime connection.
+## Start on Windows or Mac
 
-## What testers use
+1. Download with **Code → Download ZIP**, then extract. A private repository requires repository access.
+2. Install **Node.js 22 or newer** from https://nodejs.org once, if needed.
+3. Windows: double-click **Start.cmd**. Mac: run **Start.command**; if Finder will not execute it, open Terminal in the extracted folder and run `bash Start.command`.
+4. The first launch installs the app and official AI helpers. Internet is required. Your browser then opens your own local address, normally `http://127.0.0.1:8767`.
+5. Choose **ChatGPT** or **Claude**, then complete the provider's own browser sign-in if needed. Existing eligible sign-ins can be reused. Product Studio never asks for your password or reads provider tokens. Your subscription access and usage limits apply; no API key is required.
+6. Keep the launcher open while working. Closing it stops the local app. The interface runs in your browser; the selected AI provider processes the interview remotely through its official local tool.
 
-Testers connect a private HTTPS MCP invite link to **their own ChatGPT account**. Their ChatGPT conducts the interview, writes with them, and uses its available research tools. They do not install this source code, share passwords, supply an API key, or use the project owner's AI account. Their account must allow custom MCP connections; account and workspace policies and usage limits apply.
+## Create together
 
-The MCP service provides three tools and one interface: start the interview with the versioned skills, update the working product panel, and render reviewed files. The panel contains the brief, editable manuscript, stage approval, checkpoints, and downloads. Continue the conversation in ChatGPT's usual composer.
+The twelve stages discover your actual expertise; choose a useful problem, audience and niche; inspect market offers; improve the solution and offer; choose format; refine outline; set voice/design; create section by section; review; and deliver actual files. A workbook is one possible output. Shared skills supply the method; your answers supply the personalization. You explicitly approve moving on.
 
-The twelve stages are expertise discovery; useful problem; audience; specific niche; actual market research; better offer and solution; format; refined outline; voice and design; creation one section at a time; review and improvement; packaging and real files. The creator chooses when to advance. The model receives the skills and instructions; they guide its behavior rather than guaranteeing that a language model can never skip a step.
+The conversation is on the left and your working brief/editable product on the right. **Save project** retains the full interview; **Open project** resumes it. A product-file checkpoint can reopen the brief/draft but does not contain the original chat.
 
-## Files
+Written-product downloads include designed PDF, editable Word, native-text PowerPoint for Canva import, Markdown, a brief checkpoint and ZIP. This app downloads files in the browser; it never opens Word or PowerPoint. Review the text before export and inspect a Canva import before sale. A document specification is not a real Google Sheet.
 
-The deterministic exporter renders the actual manuscript as a designed A4 PDF, editable Word document, editable PowerPoint pages for Canva import, Markdown, and a project checkpoint. The cover and body share a layout between PDF and PowerPoint; PowerPoint contains native editable text. Canva import must be checked for each product. This pilot does not create native Canva designs, illustrations, audio, or video.
+Canva and Google Workspace need separate, supported account connections and real-file testing. An AI subscription sign-in does not automatically expose every connection from the provider's website in this local app. Native file creation must be verified before claiming it works.
 
-There are three restrained color themes: clay, sage, and ink. The first pilot uses Lato's supported characters, including English and Tagalog. An unsupported symbol produces an actionable error rather than a silently broken PDF. This is a text-document production prototype, not a full design editor.
+## Your data
 
-## Run locally
+The interview/draft is saved in this browser on this computer. Keep a project checkpoint before clearing browser data. There is no project database. Generated downloads remain temporarily in local memory, expire after an hour and disappear when the server stops; regenerate from your saved draft. Your messages go to the selected AI provider. Provider data policies and usage limits apply.
 
-Use Node 22 or newer:
+No credentials, private interviews or generated customer files belong in Git. One tester's work/account is never used to serve another.
 
-```sh
-npm ci
-```
+## Development
 
-Set `STUDIO_INVITE_TOKEN` to a cryptographically random string of at least 32 characters, then run:
+`npm ci` installs pinned dependencies; `npm start` starts locally. Set `STUDIO_OPEN_BROWSER=1` to open the browser automatically. `npm test` runs focused local-server/provider checks. Lato fonts are retrieved from a pinned source with SHA-256 verification and the included OFL license.
 
-```sh
-npm start
-```
-
-The endpoint is `http://127.0.0.1:8788/mcp/YOUR-TOKEN`. Localhost is for development; external testers need the hosted HTTPS endpoint. `.env.example` documents the variable; this server reads environment variables, not a `.env` file automatically. Do not put the real invite into Git, screenshots, or issue comments.
-
-`npm ci` retrieves two OFL-licensed Lato fonts from a pinned Google Fonts commit and checks SHA-256. Their license is included in `fonts/OFL.txt`. Font files, dependencies, private environment files, and test outputs are excluded from Git.
-
-## Hosting and sharing
-
-GitHub stores the private source and offers **Code → Download ZIP** to authorized repository collaborators. It does not run this server. Deploy this repository as a **new Vercel project**, with framework set to Other, using `vercel.json`. The install command is `npm ci`; no frontend build is required. Configure `STUDIO_INVITE_TOKEN` as a sensitive server environment variable before deployment. Use the new project's normal production endpoint for the pilot; a Vercel sign-in wall on that endpoint prevents ChatGPT from connecting.
-
-Give the invite URL privately to a small trusted group. Anyone holding it can use the service; this is shared invite access, not individual identity verification. Rotate the environment value and redeploy to revoke the old link for everyone. The URL may appear in the hosting provider's request records. Do not put it in this README or publish it in the repository.
-
-See [TESTER-START.md](TESTER-START.md) for installation and a short first test. No marketplace listing is needed for the custom MCP pilot. A future public release and any Claude installation need their own acceptance checks.
-
-## Data handling
-
-The service receives the brief and manuscript submitted in tool calls to render the panel and files. It keeps no project database, user accounts, saved transcripts, or server-side file library. Export bytes are generated in memory and returned only in the tool result's `_meta`; the model sees file names and page count. The UI asks the host to download each file using `ui/download-file`. If that host does not advertise download support, the panel explains the limitation and retains the draft. It must not claim a download completed merely because a file was prepared.
-
-The chat, tool arguments, model context updates, and optional widget state follow ChatGPT's data handling. Hosting-provider infrastructure records still apply. A creator should save a checkpoint; do not assume the service can recover a project from a database. Imported checkpoints are validated before replacing visible work, and edits clear the old review and file exports.
-
-## Verification
-
-```sh
-npm test
-npm run test:panel
-```
-
-The automated suite uses an actual HTTP MCP client, not mocked tool return values. The panel harness at `http://127.0.0.1:8789` uses the same MCP tools and simulates the host bridge, with a labeled illustrative manuscript. It is a local test harness, **not proof of installation or download support in ChatGPT**. It is not deployed as a public endpoint. See [TESTED.md](TESTED.md) for evidence and unrun acceptance checks.
+See TESTED.md for actual checks and UNRUN items. A Windows source check does not prove Mac execution; a simulated provider does not prove a live Claude reply; native cloud outputs need their own acceptance.
