@@ -43,9 +43,49 @@ test('discussion at format choice does not trigger an unrelated six-format rewri
 });
 
 test('both providers receive concern-first guidance and a structured discussion route',()=>{
-  for(const provider of ['chatgpt','claude'])for(const stage of [1,6,8,10,12]){
+  for(const provider of ['chatgpt','claude'])for(let stage=1;stage<=12;stage++){
     const {prompt}=interviewPrompt({...request(stage,'Will anyone want this?'),provider});
     assert.match(prompt,/replyKind/);assert.match(prompt,/concerns.*insecurity|insecurity.*concerns/i);
     assert.match(prompt,/not.*(?:proof|guarantee).*pay|never.*(?:promise|guarantee).*sales/i);
+    assert.match(prompt,/similar course has sold.*meaningful positive signal/i);
+    assert.match(prompt,/starting point, not a ceiling/i);
+    assert.match(prompt,/one or two grounded improvements/i);
   }
+});
+
+test('research-led improvements and further expertise exploration stay visible without expanding approved content',async()=>{
+  const b={...brief(),productDraft:'## Launch setup\n\nMap the essential accounts.'};
+  const message='Sales of a genuinely comparable workshop would be an encouraging niche signal we can learn from. A clearer payment-to-email demonstration and a troubleshooting checklist could make your version more useful. Those are proposals, not claims about what you have already taught. To improve that demonstration, have you also helped someone troubleshoot a payment that did not trigger an email?';
+  const result=await run(request(10,'Maybe I know more about this than we have covered. Can you help me improve the idea?',b),reply(b,message));
+  assert.equal(result.message,message);assert.equal(result.stageReady,false);assert.equal(result.brief.productDraft,b.productDraft);
+});
+
+test('every stage can research demand while retaining the concern and protected manuscript',async()=>{
+  for(const provider of ['chatgpt','claude'])for(let stage=1;stage<=12;stage++){
+    const b={...brief(),productDraft:stage>=9?'## Launch setup\n\nMap the accounts and one customer task.':''};
+    const message='It is understandable to wonder whether your workshop is worth paying for. I found a related course with learner reviews and a public discussion asking how to connect payments and emails. These are adjacent participation and problem signals, not verified sales for your exact workshop. We can use them to refine a small pilot together.';
+    const evidence='Adjacent participation signal: https://example.com/course lists learner reviews. Problem signal: https://example.org/discussion asks about payment and email connections. Paid sales and exact-offer demand remain unverified.';
+    let calls=0;
+    const result=await interview({...request(stage,'Will anyone pay for this? Please research similar products and discussions.',b),provider},{infer:async(_,prompt,__,options)=>{
+      calls++;assert.equal(options.search,true,`${provider} stage ${stage}`);
+      assert.match(prompt,/RESEARCH THROUGHOUT/i);assert.doesNotMatch(prompt,/Do not use external tools or access local files/);
+      return reply({...b,marketEvidence:evidence},message);
+    }});
+    assert.equal(calls,1);assert.equal(result.message,message);assert.equal(result.stageReady,false);
+    assert.equal(result.brief.productDraft,b.productDraft);assert.equal(result.brief.marketEvidence,evidence);
+  }
+});
+
+test('failed demand research remains a supportive discussion without inventing a negative verdict',async()=>{
+  const b=brief(),message='I understand why you want evidence before putting more time into this. The public search was unavailable, so I cannot tell whether similar workshops have sold. That does not mean there is no demand. We can retry the search or narrow a small pilot together.';
+  const result=await run(request(8,'I am worried nobody will buy this.',b),reply({...b,marketEvidence:'Research UNRUN: public search unavailable.'},message));
+  assert.equal(result.message,message);assert.equal(result.stageReady,false);assert.equal(result.brief.productDraft,'');
+  assert.match(result.brief.marketEvidence,/UNRUN/);
+});
+
+test('research guidance separates sales proof, participation and discussion across the app',()=>{
+  const {prompt}=interviewPrompt(request(10,'Can we check if anyone has paid for something similar?'));
+  assert.match(prompt,/Reddit/);assert.match(prompt,/enrollment.*free|free.*enrollment/i);
+  assert.match(prompt,/self.reported|self-reported/i);assert.match(prompt,/absence of evidence.*no demand/i);
+  assert.match(prompt,/source URLs.*dates|dates.*source URLs/i);
 });

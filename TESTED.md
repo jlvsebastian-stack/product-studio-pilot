@@ -1,5 +1,15 @@
 # Local pilot evidence — 28 October 2026
 
+## Version 0.3.10: research demand and improve the offer throughout the app
+
+PASS: combined suite **225/225** and one independent review at exact source **6042d806582347ca3f50837004a992f9af716960**. Read-only web research is available at all twelve stages through the existing adapters; shared guidance uses it when relevant without requiring it for ordinary writing or reassurance. Controlled cases cover both providers at every stage, supportive failed-research handling, evidence distinctions, concrete improvement proposals and further expertise exploration. Discussion still pauses readiness and preserves the manuscript. Shell, connected-app, account and browser-control access remain disabled in these interview invocations.
+
+PASS: native Windows **GPT-6.1 Sol · Medium** through normal composer controls in a separate localhost demo project at stage1. A doubt about an AI-assisted sales-website webinar produced supportive acknowledgment, three comparable learning-product links, a relevant Reddit discussion, two concrete improvements and one focused question about further troubleshooting knowledge. The app stayed at stage1 with no draft/outline or Continue prompt. This proves research-capable behavior outside market stage5; all-stage/both-provider coverage remains controlled-test evidence rather than twelve native trials.
+
+PASS, bounded public readback: the cited Reddit thread contains the reported pixel-connection question and traffic concerns. Independent search retrieved the two cited course pages with their stated paid offers and teaching contents; one course page was directly accessible while two bare-host opens required search/canonical-host recovery. These are comparable offer/participation/problem signals, not independently verified transaction counts. Separate public primary research also found an adjacent paid AI workshop reporting sold-out sessions. Credible comparable sales are treated as a constructive opportunity to study buyer value and improve the solution, while initial creator knowledge remains a starting point rather than a ceiling. No private creator history was used in the demo or committed.
+
+UNRUN: live eligible Claude research, actual macOS execution, an independent full creator trial and the local app's automatic native Canva/Google Docs delivery. Prior limitations remain unchanged.
+
 ## Version 0.3.9: respond to creator concerns before continuing
 
 PASS: reproduced the actual pacing defect before the fix: a useful answer to a creator's concern, ending in a relevant follow-up question, was replaced with the generic outline-ready instruction. The response contract now distinguishes discussion from normal progress. Concern/question replies survive the stage templates, pause readiness and preserve the existing manuscript; proposed brief/outline corrections remain reviewable. Both shared interview/craft skills explicitly require specific, supportive, honest concern-first responses without sales promises.
