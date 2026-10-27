@@ -8,8 +8,10 @@
   },
   "scripts": {
     "postinstall": "node scripts/prepare-fonts.js",
-    "start": "node src/local-server.js",
-    "test": "node --test test/local.test.js"
+    "start": "node scripts/launch.js",
+    "serve": "node src/local-server.js",
+    "setup": "node scripts/setup.js",
+    "test": "node --test test/local.test.js test/launcher.test.js"
   },
   "dependencies": {
     "@openai/codex": "0.157.1",

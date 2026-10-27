@@ -1,11 +1,11 @@
-# First private test
+# Try Product Studio
 
-Download and extract the ZIP, install Node.js22+ if needed, then start Start.cmd (Windows) or Start.command (Mac). Choose your own ChatGPT or Claude account and complete its official sign-in. No password is entered in Product Studio.
+Send a local-capable AI assistant:
 
-1. The browser should open your own localhost. Keep the full interview inside this app.
-2. Give one vague expertise answer. The interviewer should probe for a real example instead of inventing experience or advancing.
-3. Supply a real case and check that the next question builds on it. Approve the direction only when it is right.
-4. Refine actual content, edit a paragraph, Save project, reload, and Open project. Your work should survive. An invalid import should preserve the current project.
-5. Review the written product and create its PDF/editable package. Check the actual files. A Canva-compatible file is different from a verified native design; a spreadsheet specification is different from a real Sheet.
+> Install https://github.com/jlvsebastian-stack/product-studio-pilot on my computer and open Product Studio.
 
-Report your provider, operating system, where a question felt generic, what it misunderstood, and whether saving/files worked. Share only interview details you choose. Sales and a complete twelve-stage creator journey remain unproven until real creators finish them.
+Next time, say **Launch Product Studio**. Use ChatGPT desktop local Work, local Codex, or Claude Code; a normal website chat with no local tools cannot install computer software.
+
+Choose your own AI account in the local app. Give a vague expertise answer first, then check that it asks a useful follow-up and uses your real example. Approve only a direction that is accurate. Save/reopen a project, edit a paragraph and check the actual PDF/text files. Canva and Workspace are optional.
+
+Report your operating system, AI provider, any installation friction, questions that felt generic and whether saving/files worked. Only share the interview details you choose. A Canva-compatible file or spreadsheet specification is different from a verified native design or working Sheet.

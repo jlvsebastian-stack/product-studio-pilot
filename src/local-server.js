@@ -75,9 +75,9 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
   };
 }
 
-function openLocalBrowser(url){
+export function openLocalBrowser(url){
   const command=process.platform==='win32'?['rundll32.exe',['url.dll,FileProtocolHandler',url]]:process.platform==='darwin'?['open',[url]]:['xdg-open',[url]];
-  execFile(command[0],command[1],{windowsHide:true},()=>{});
+  return new Promise((resolve,reject)=>execFile(command[0],command[1],{windowsHide:true},error=>error?reject(error):resolve()));
 }
 async function isStudio(url){
   // A fresh connection avoids a browser/runtime keep-alive pool mistaking a reused port for an old app.
@@ -101,16 +101,16 @@ export async function startLocalServer({port=Number(process.env.STUDIO_PORT||876
     try{
       await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(candidate,'127.0.0.1',resolve);});
       const url=`http://127.0.0.1:${server.address().port}`;
-      if(openBrowser)openLocalBrowser(url);
+      if(openBrowser)await openLocalBrowser(url).catch(()=>{});
       return {server,url,reused:false,close:()=>new Promise(resolve=>server.close(resolve))};
     }catch(error){
       if(error.code!=='EADDRINUSE')throw error;
       const url=`http://127.0.0.1:${candidate}`;
-      if(await isStudio(url)){if(openBrowser)openLocalBrowser(url);return {server:null,url,reused:true,close:async()=>{}};}
+      if(await isStudio(url)){if(openBrowser)await openLocalBrowser(url).catch(()=>{});return {server:null,url,reused:true,close:async()=>{}};}
     }
   }
   throw new Error('Product Studio could not find a free local port. Close an older copy and try again.');
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
-  startLocalServer().then(({url,reused})=>console.log(`Product Studio ${reused?'is already running':'is ready'}: ${url}\nKeep this launcher open while you work. Your data stays in your browser; save a project checkpoint before stopping.`)).catch(error=>{console.error(error.message);process.exitCode=1;});
+  startLocalServer().then(({url,reused})=>{process.send?.({type:'product-studio-ready',url,reused});console.log(`Product Studio ${reused?'is already running':'is ready'}: ${url}`);}).catch(error=>{console.error(error.message);process.exitCode=1;});
 }

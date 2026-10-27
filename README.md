@@ -1,34 +1,41 @@
-# Product Studio — local pilot
+# Product Studio
 
-Download from GitHub, launch on your computer, and complete the whole interview inside Product Studio. Each person uses their own ChatGPT subscription through official Codex, or their own Claude subscription through official Claude Code. This is independent of KKY and needs no hosted backend or shared AI account.
+A local app that interviews you about your knowledge and helps you create a useful digital product. It runs on your computer, in your browser, using your own ChatGPT or Claude subscription. PDF and text downloads work without optional Canva or Google Workspace connections.
 
-## Start on Windows or Mac
+## Install with one message
 
-1. Download with **Code → Download ZIP**, then extract. A private repository requires repository access.
-2. Install **Node.js 22 or newer** from https://nodejs.org once, if needed.
-3. Windows: double-click **Start.cmd**. Mac: run **Start.command**; if Finder will not execute it, open Terminal in the extracted folder and run `bash Start.command`.
-4. The first launch installs the app and official AI helpers. Internet is required. Your browser then opens your own local address, normally `http://127.0.0.1:8767`.
-5. Choose **ChatGPT** or **Claude**, then complete the provider's own browser sign-in if needed. Existing eligible sign-ins can be reused. Product Studio never asks for your password or reads provider tokens. Your subscription access and usage limits apply; no API key is required.
-6. Keep the launcher open while working. Closing it stops the local app. The interface runs in your browser; the selected AI provider processes the interview remotely through its official local tool.
+In **ChatGPT desktop with local work enabled, Codex, or Claude Code**, send:
+
+> Install Product Studio from https://github.com/jlvsebastian-stack/product-studio-pilot on my computer, set up its launcher, and open it.
+
+The assistant should follow [INSTALL.md](INSTALL.md), handle Node.js and dependencies, and install the small launch shortcut. You do not need to copy terminal commands. Your AI may request its normal permission to install software or open the browser.
+
+Use a local-capable assistant. A regular ChatGPT or Claude website chat without local computer tools cannot install or launch software on your computer.
+
+## Launch next time
+
+Ask the same local assistant:
+
+> Launch Product Studio.
+
+In Codex or Claude Code you can also invoke the installed **product-studio** skill. Start a new chat if the assistant has not loaded the newly installed skill yet. It starts the local server in the background and opens your browser automatically. If the app is already running, it reuses that instance.
+
+Choose ChatGPT or Claude in the app and complete the provider's official sign-in if needed. Your subscription access and usage limits apply; Product Studio never asks for your password or copies provider tokens. Claude requires an eligible Claude Code account. No hosted backend, shared AI account, or API key is required.
 
 ## Create together
 
-The twelve stages discover your actual expertise; choose a useful problem, audience and niche; inspect market offers; improve the solution and offer; choose format; refine outline; set voice/design; create section by section; review; and deliver actual files. A workbook is one possible output. Shared skills supply the method; your answers supply the personalization. You explicitly approve moving on.
+The twelve stages discover your expertise; choose a useful problem, audience and niche; inspect market offers; improve the offer and solution; choose format; refine outline; set voice/design; create section by section; review; and deliver files. Shared skills supply the method; your answers supply the personalization. You explicitly approve moving on. A workbook is one possible output.
 
-The conversation is on the left and your working brief/editable product on the right. **Save project** retains the full interview; **Open project** resumes it. A product-file checkpoint can reopen the brief/draft but does not contain the original chat.
+The interview stays inside Product Studio. The conversation is on the left, with the brief and editable draft on the right. **Save project** retains the full interview; **Open project** resumes it.
 
-Written-product downloads include designed PDF, editable Word, native-text PowerPoint for Canva import, Markdown, a brief checkpoint and ZIP. This app downloads files in the browser; it never opens Word or PowerPoint. Review the text before export and inspect a Canva import before sale. A document specification is not a real Google Sheet.
+PDF and text are default. Other editable formats and Canva-compatible pages are included in the file package. The app never opens Word or PowerPoint. Canva and Google Workspace are optional; setup instructions are inside the app. Their native-file route requires a supported connection and actual testing. A PDF of a calculator is not a functioning spreadsheet.
 
-Canva and Google Workspace need separate, supported account connections and real-file testing. An AI subscription sign-in does not automatically expose every connection from the provider's website in this local app. Native file creation must be verified before claiming it works.
+## Manual start, if wanted
+
+Extract the source ZIP into a new folder. With Node.js 22+ installed, run **Start.cmd** on Windows or **Start.command** on Mac (`bash Start.command` if Finder will not execute it). First launch installs dependencies. You can also run `npm ci`, `node scripts/setup.js`, then `npm start`.
 
 ## Your data
 
-The interview/draft is saved in this browser on this computer. Keep a project checkpoint before clearing browser data. There is no project database. Generated downloads remain temporarily in local memory, expire after an hour and disappear when the server stops; regenerate from your saved draft. Your messages go to the selected AI provider. Provider data policies and usage limits apply.
+The interview and draft are saved in this browser on this computer. Keep a project checkpoint before clearing browser data. Your messages go to the selected AI provider for processing. Generated downloads are held temporarily in local memory and can be regenerated from your draft. No credentials, private interviews, or generated customer files belong in this repository.
 
-No credentials, private interviews or generated customer files belong in Git. One tester's work/account is never used to serve another.
-
-## Development
-
-`npm ci` installs pinned dependencies; `npm start` starts locally. Set `STUDIO_OPEN_BROWSER=1` to open the browser automatically. `npm test` runs focused local-server/provider checks. Lato fonts are retrieved from a pinned source with SHA-256 verification and the included OFL license.
-
-See TESTED.md for actual checks and UNRUN items. A Windows source check does not prove Mac execution; a simulated provider does not prove a live Claude reply; native cloud outputs need their own acceptance.
+This project is separate from KKY. See [TESTED.md](TESTED.md) for actual checks and unverified items, including Mac execution, live Claude and native cloud-file creation.
