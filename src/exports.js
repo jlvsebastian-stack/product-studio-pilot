@@ -42,7 +42,7 @@ async function makeDeck(design,brief){
       else if(item.type==='line')slide.addShape(deck.ShapeType.line,{objectName:'studio-'+(item.role||'rule'),x:Math.min(item.x,item.x2)/72,y:Math.min(item.y,item.y2)/72,w:Math.abs(item.x2-item.x)/72,h:Math.abs(item.y2-item.y)/72,line:{color:item.stroke,width:item.width},flipV:item.y2<item.y});
       else if(item.type==='image')slide.addImage({data:item.image.data,x:item.x/72,y:item.y/72,w:item.w/72,h:item.h/72});
     }
-    slide.addNotes(scene.purpose);
+    slide.addNotes(scene.presenterNotes||scene.purpose);
   }
   return deck.write({outputType:'nodebuffer'});
 }
@@ -85,6 +85,7 @@ export async function exportProduct(raw,options={}){
   if(draft&&bodyLength<80)throw new Error('Add a substantive paragraph, worked example, template, or exercise of at least 80 characters before downloading a draft sample.');
   if(!draft&&(manuscript.trim().length<600||bodyLength<450))throw new Error('Add the actual teaching, examples, templates, or exercises before exporting. An outline alone is not a finished product.');
   const design=await designProduct(project,{...options,draft});
+  if(design.hasPresenterNotes&&design.audienceBodyLength<80)throw new Error('Add actual audience-facing slide content before exporting. Presenter notes alone are not a presentation. Your draft is unchanged.');
   const slug=design.title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||'digital-product';
   const basename=slug+(draft?'-sample':'');
   const markdown=draft?`> ${draftLabel}\n\n${manuscript}`:manuscript;

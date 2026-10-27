@@ -38,7 +38,7 @@ test('the local model-access endpoint checks the exact selection and returns its
     const res=await fetch(app.url+'/api/check-model',{method:'POST',headers:{Origin:app.url,'Content-Type':'application/json'},body:JSON.stringify(sol)});
     assert.equal(res.status,200,'The selected-model check endpoint must exist');
     assert.deepEqual(await res.json(),{available:true,message:'The selected model responded.'});assert.deepEqual(received,sol);
-    assert.equal((await(await fetch(app.url+'/api/health')).json()).version,'0.3.6');
+    assert.equal((await(await fetch(app.url+'/api/health')).json()).version,'0.3.7');
     const module=await fetch(app.url+'/model-access.js');assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);
   }finally{await app.close();}
 });

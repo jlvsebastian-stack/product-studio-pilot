@@ -1,5 +1,14 @@
 # Local pilot evidence — 28 October 2026
 
+## Version 0.3.7: webinar presentation with presenter notes
+
+PASS: combined suite **208/208** at exact source **7c171d1af525ee5d77a79d092f590f49a8369514**, independently reviewed with nine focused webinar guidance/export cases passing. Webinar and webinar-plus-course formats route to the presentation design skill and 16:9 geometry. Explicit per-slide Presenter notes/Speaker notes become native PPTX speaker notes, including source-slide continuations, and are excluded from visible slide content, PDF and preview. Complete Word/Markdown/project source is preserved. A first matching-title teaching slide is retained; unattached, empty or script-only notes fail with actionable recovery instead of silently dropping material. Ordinary guide/workbook behavior remains intact.
+
+PASS: normal browser-control acceptance in a separate localhost origin, preserving the creator's project on127.0.0.1. Imported a fictional four-teaching-slide presentation, reviewed and approved the test manuscript through normal controls, created the package and downloaded it through the Complete package link. Inspection of that actual ZIP found five960x540 PDF/PPTX slides (generated cover plus four teaching slides), four correctly associated native notes parts, no presenter cue text on visible slides or PDF, all four notes in Word, byte-exact Markdown and no private project JSON in the sale ZIP. This controlled fixture proves generated files and download behavior, not completion of an independent creator trial or native editor import.
+
+PASS: actual creator project through the normal composer and subscribed **GPT-6.1 Sol · Medium** accepted the requested correction. Its reply explicitly confirmed the webinar presentation with slide-by-slide presenter notes and retained the supporting materials. It awaits the creator's Continue action before outlining; no manuscript or final user presentation was generated prematurely. The existing conversation and exact model/quality were preserved. No private transcript was committed.
+
+UNRUN: native Canva/Google Slides/PowerPoint import or preservation of notes after import, live eligible Claude, macOS execution and an independent complete twelve-stage trial. The native PPTX notes are verified in generated files; editor import is a separate boundary. Hosting, presenting and recording remain separate from creating the deck.
 ## Version 0.3.6: explain product formats and include webinar
 
 PASS: independent correction review accepted exact source **d27ccb6a01532545c0f98863cb2ab13a8c1aeff7**, closing generic option bodies, irrelevant closing questions and a returned-blank format reopening an already chosen webinar. An existing local-launch test encountered one transient local-port EACCES; the unchanged final combined rerun passed199/199. Chosen-format clarification retains its explanation and uses one inference.

@@ -4,7 +4,7 @@ import fontkit from '@pdf-lib/fontkit';
 
 export const draftLabel='DRAFT SAMPLE — for review';
 export const geometry={width:595.28,height:841.89,margin:52,bottom:772};
-export function geometryForFormat(format=''){return /presentation|slides?|\bdeck\b/i.test(format)?{width:960,height:540,margin:64,bottom:474}:geometry;}
+export function geometryForFormat(format=''){return /presentation|slides?|\bdeck\b|\bwebinars?\b/i.test(format)?{width:960,height:540,margin:64,bottom:474}:geometry;}
 export const fontBytes={regular:readFileSync(new URL('../fonts/Lato-Regular.ttf',import.meta.url)),bold:readFileSync(new URL('../fonts/Lato-Bold.ttf',import.meta.url))};
 const metrics={regular:fontkit.create(fontBytes.regular),bold:fontkit.create(fontBytes.bold)};
 export const themes={clay:{accent:'934C37',pale:'F3E7DF',paper:'FFFCF8',ink:'292D29',muted:'62675F'},sage:{accent:'376451',pale:'E6EEE7',paper:'FCFCF8',ink:'25382F',muted:'5D6A61'},ink:{accent:'2D5575',pale:'E7EEF4',paper:'FCFCFD',ink:'233441',muted:'5D6B77'}};
@@ -108,13 +108,25 @@ export async function designProduct(project,{coverImage,draft=false}={}){
   if(brief.author.trim().length>300||brief.format.trim().length>180)throw new Error('Use an author name up to 300 characters and a format label up to 180 characters. Your draft is unchanged.');
   const selectedGeometry=geometryForFormat(brief.format),deck=selectedGeometry.width>selectedGeometry.height;
   const {width:W,height:H,margin:M,bottom}=selectedGeometry,pages=[];
-  const sections=[];let section={title:'Getting started',blocks:[]};
+  const sections=[];let section={title:'Getting started',blocks:[]},inNotes=false;
+  const finishSection=()=>{
+    if(section.noteBlocks){
+      if(!section.noteBlocks.length)throw new Error(`Add presenter notes for "${section.title}", or remove the empty notes heading. Your draft is unchanged.`);
+      section.presenterNotes=section.noteBlocks.map(block=>(block.kind==='heading'?'#'.repeat(block.level)+' ':block.bullet?'• ':block.kind==='quote'?'> ':'checked' in block?(block.checked?'[x] ':'[ ] '):'')+block.text).join('\n\n');
+    }
+    if(section.blocks.length||section.heading)sections.push(section);
+  };
   blocks.forEach((block,index)=>{
-    if(index===0&&block.kind==='heading'&&normalize(block.text)===normalize(title))return;
-    if(block.kind==='heading'&&block.level<=2){if(section.blocks.length||sections.length)sections.push(section);section={title:block.text,blocks:[],heading:block};}
+    if(index===0&&block.kind==='heading'&&normalize(block.text)===normalize(title)&&(!deck||block.level===1))return;
+    if(block.kind==='heading'&&block.level<=2){finishSection();section={title:block.text,blocks:[],heading:block};inNotes=false;}
+    else if(deck&&block.kind==='heading'&&block.level===3&&/^(?:presenter|speaker) notes:?$/i.test(block.text.trim())){
+      if(section.heading?.level!==2)throw new Error('Place presenter notes under a slide headed "## Slide title". Your draft is unchanged.');
+      section.noteBlocks??=[];inNotes=true;
+    }else if(inNotes)section.noteBlocks.push(block);
     else section.blocks.push(block);
   });
-  if(section.blocks.length||section.heading)sections.push(section);
+  finishSection();
+  const audienceBodyLength=sections.flatMap(section=>section.blocks).filter(block=>['body','list','code'].includes(block.kind)).reduce((length,block)=>length+block.text.length,0);
   const splitCover=Boolean(deck&&image&&title.length<95),coverWidth=splitCover?W*0.51-M:W-2*M;
   const titleSize=deck?(title.length>95?39:50):(title.length>105?32:39);
   const titleEnd=(deck?100:133)+wrapText(title,titleSize,coverWidth,true).length*titleSize*1.17+22;
@@ -192,8 +204,8 @@ export async function designProduct(project,{coverImage,draft=false}={}){
     if(compact){
       page=carry.page;y=carry.y+26;line(page,M,y-10,W-M,y-10,theme.pale,1,'section-divider');
       for(const headingLine of wrapText(current.title,21,W-2*M,true)){text(page,headingLine,M,y,21,theme.ink,true,'heading');y+=27;}y+=20;
-    }else{page=newPage(current.title,current.layout,current.purpose);y=page.contentY;}
-    const nextPage=()=>{page=newPage(current.title,current.layout,current.purpose,true);y=page.contentY;};
+    }else{page=newPage(current.title,current.layout,current.purpose);page.presenterNotes=current.presenterNotes;y=page.contentY;}
+    const nextPage=()=>{page=newPage(current.title,current.layout,current.purpose,true);page.presenterNotes=current.presenterNotes;y=page.contentY;};
     const addBlock=(block)=>{
       const heading=block.kind==='heading',size=heading?(deck?27:16):(deck?23:13.2),leading=heading?(deck?35:23):(deck?31:20);
       const isStep=current.layout==='steps'&&block.ordered,isPrompt=current.layout==='exercise'&&/_{3,}\s*$/.test(block.text);
@@ -232,7 +244,7 @@ export async function designProduct(project,{coverImage,draft=false}={}){
     text(page,String(index+1).padStart(2,'0'),W-M-17,H-43,9,theme.accent,true,'page-number');
     if(index>0)text(page,shortLabel(title),M,H-43,8.3,theme.muted,false,'running-title');
   }
-  return {pages,title,blocks,sections,theme,image,draft:draft===true,geometry:selectedGeometry};
+  return {pages,title,blocks,sections,theme,image,draft:draft===true,geometry:selectedGeometry,hasPresenterNotes:sections.some(section=>section.presenterNotes),audienceBodyLength};
 }
 const escape=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 // Package the pinned TTF tables as WOFF so every SVG image has its actual font,

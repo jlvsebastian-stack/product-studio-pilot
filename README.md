@@ -52,6 +52,8 @@ Download a clearly marked draft sample for review before approving it or expandi
 
 PDF and text are default. Designed previews and downloads use the same page layout. Other editable formats and Canva-compatible pages are included in the file package. Your private working-brief checkpoint is kept out of the product ZIP; use Save project for a personal backup. Useful built-in diagrams and optional creator-provided images support the product's content. The app never opens Word or PowerPoint. Canva and Google Workspace are optional; setup instructions are inside the app. Their native-file route and AI image generation require supported connections and actual testing. A PDF of a calculator is not a functioning spreadsheet.
 
+A webinar is a presentation with slide-by-slide presenter notes. The editable PowerPoint stores the notes with each slide; the PDF contains the audience-facing presentation, and Word/Markdown retain the complete slide text and notes. Inspect notes after importing into another editor; preserving them through Canva or Google Slides import has not been verified. Hosting, presenting and recording are separate from creating these files.
+
 ## Manual start, if wanted
 
 Extract the source ZIP into a new folder. With Node.js 22+ installed, run **Start.cmd** on Windows or **Start.command** on Mac (`bash Start.command` if Finder will not execute it). First launch installs dependencies. You can also run `npm ci`, `node scripts/setup.js`, then `npm start`.
