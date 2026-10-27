@@ -1,0 +1,21 @@
+{
+  "name": "product-studio-private-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "postinstall": "node scripts/prepare-fonts.js",
+    "start": "node src/dev.js",
+    "test:panel": "node test/host-server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@pdf-lib/fontkit": "1.1.1",
+    "docx": "9.5.1",
+    "pdf-lib": "1.17.1",
+    "pptxgenjs": "4.0.1",
+    "zod": "3.25.76"
+  }
+}
