@@ -2,7 +2,7 @@
 
 Build a complete reading path: orient the reader, explain the useful judgment, demonstrate it with a labeled example, and give them a meaningful action and check. Keep paragraphs substantive and section headings specific. A section may continue across pages; never shorten approved content just to fit a template.
 
-The local exporter uses A4 portrait for guides, workbooks, checklists and template kits. It uses the same measured text and native graphics in SVG preview, PDF and editable PPTX pages. Full section headings and manuscript content remain present when navigation labels are shortened. Use a representative sample with realistic density before expanding the product.
+The local exporter uses A4 portrait for guides, workbooks, checklists and template kits. It uses the same measured text and native graphics in SVG preview and PDF pages. Full section headings and manuscript content remain present when navigation labels are shortened. Use a representative sample with realistic density before expanding the product.
 
 Lato regular and bold are pinned, licensed font assets. PDF embeds those fonts and SVG preview embeds WOFF copies. Unsupported glyphs produce a clear error and keep the draft intact. Ask for a suitable language/font solution rather than silently replacing symbols or removing text.
 

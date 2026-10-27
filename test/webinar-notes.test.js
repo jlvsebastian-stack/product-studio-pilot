@@ -5,7 +5,7 @@ import {PDFDocument} from 'pdf-lib';
 import {extractText} from 'unpdf';
 import {freshProject} from '../src/product.js';
 import {designProduct,geometryForFormat} from '../src/page-design.js';
-import {exportProduct,previewProduct} from '../src/exports.js';
+import {exportProduct,exportCanvaSource,previewProduct} from '../src/exports.js';
 
 const slides=[
   {title:'Slide 1: Ask about the next task',body:'A useful handoff starts with one concrete task. Ask the cafe owner what they need to change, publish or send this week. Record the task, the person doing it and any supplier requirement that is still unanswered.',notes:'Presenter-only cue ALPHA: Explain that this is a fictional teaching example. Ask participants to name one actual handoff they are preparing; give them thirty seconds to write the next task.',extra:'- If someone says everything, ask which task comes first.\n- Keep unknown supplier requirements as questions.'},
@@ -38,14 +38,13 @@ test('presentation scenes separate presenter notes from visible content without 
   assert.ok(design.blocks.some(block=>block.text.includes(slides[0].notes)),'Full editable source retains presenter text');
 });
 
-test('actual webinar PDF, PPTX and preview show slides while native per-slide notes and editable source retain the script',async()=>{
+test('actual webinar PDF and preview show slides while internal Canva notes and Markdown retain the full script',async()=>{
   const project=webinarProject(),design=await designProduct(project),result=await exportProduct(project),preview=await previewProduct(project);
   const pdf=await PDFDocument.load(bytes(result,'.pdf'));assert.deepEqual(pdf.getPage(0).getSize(),{width:960,height:540});
   const pdfText=(await extractText(Uint8Array.from(bytes(result,'.pdf')),{mergePages:true})).text;
-  const deck=await JSZip.loadAsync(bytes(result,'.pptx')),word=await JSZip.loadAsync(bytes(result,'.docx'));
+  const deck=await JSZip.loadAsync((await exportCanvaSource(project)).bytes);
   assert.match(await deck.file('ppt/presentation.xml').async('string'),/cx="12192000" cy="6858000"/);
   const visibleXml=(await Promise.all(Object.entries(deck.files).filter(([name])=>/^ppt\/slides\/slide\d+\.xml$/.test(name)).map(([,entry])=>entry.async('string')))).join('\n');
-  const wordText=text(await word.file('word/document.xml').async('string'));
   for(const slide of slides){
     const index=design.pages.findIndex(page=>page.title===slide.title);assert.ok(index>0,'The teaching slide exists after the generated cover');
     const notes=await slideNotes(deck,index+1);assert.ok(notes.includes(slide.notes));
@@ -55,16 +54,16 @@ test('actual webinar PDF, PPTX and preview show slides while native per-slide no
       assert.equal(visible.includes(slide.notes.split(':')[0]),false,'Presenter script is not audience-facing content');assert.equal(visible.includes('Presenter notes'),false);
       assert.ok(visible.includes(slide.title),'The slide heading survives');assert.ok(visible.includes(slide.body),'The actual audience teaching survives');
     }
-    assert.ok(wordText.includes(slide.notes),'Word retains the full presenter script');
+    assert.ok(bytes(result,'.md').toString().includes(slide.notes),'Markdown retains the full presenter script');
   }
   assert.equal((await slideNotes(deck,1)).includes('Presenter-only cue'),false,'User notes are not dumped on the generated cover');
   assert.equal(bytes(result,'.md').toString(),project.brief.productDraft,'Approved raw Markdown remains exact');
-  assert.equal(JSON.parse(bytes(result,'-project.json').toString()).project.brief.productDraft,project.brief.productDraft);
+  assert.equal(JSON.parse(Buffer.from(result.checkpoint.blob,'base64').toString()).project.brief.productDraft,project.brief.productDraft);
 });
 
 test('continuation slides retain only the notes for their original teaching slide',async()=>{
   const project=webinarProject();project.brief.productDraft=project.brief.productDraft.replace(slides[0].body,Array(5).fill(slides[0].body).join('\n\n'));
-  const design=await designProduct(project),result=await exportProduct(project),deck=await JSZip.loadAsync(bytes(result,'.pptx'));
+  const design=await designProduct(project),deck=await JSZip.loadAsync((await exportCanvaSource(project)).bytes);
   const continued=design.pages.map((page,index)=>({page,index})).filter(({page})=>page.title===slides[0].title);
   assert.ok(continued.length>1,'The long teaching slide actually spans multiple output slides');assert.ok(continued.some(({page})=>page.continued));
   for(const {page,index}of continued){

@@ -1,9 +1,8 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, Header, Footer, PageNumber, AlignmentType, BorderStyle } from 'docx';
 import pptxgen from 'pptxgenjs';
 import { projectSchema } from './product.js';
-import { designProduct, pageSvg, fontBytes, geometry, parseManuscript, plain, draftLabel } from './page-design.js';
+import { designProduct, pageSvg, fontBytes, parseManuscript, plain, draftLabel } from './page-design.js';
 export { parseManuscript, plain };
 const color=hex=>rgb(...[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255));
 
@@ -46,39 +45,7 @@ async function makeDeck(design,brief){
   }
   return deck.write({outputType:'nodebuffer'});
 }
-async function makeWord(design,brief){
-  const {theme,title,blocks,image}=design;
-  const run=(text,options={})=>new TextRun({text,...options});
-  const paragraphs=[new Paragraph({heading:HeadingLevel.TITLE,spacing:{before:800,after:420},children:[run(title,{bold:true,size:60,color:'25382F'})]})];
-  if(design.draft)paragraphs.unshift(new Paragraph({spacing:{before:0,after:180},children:[run(draftLabel,{size:24,bold:true,color:theme.accent})]}));
-  if(brief.outcome.trim())paragraphs.push(new Paragraph({spacing:{after:360},children:[run(brief.outcome,{size:28,color:theme.muted})]}));
-  if(brief.author.trim())paragraphs.push(new Paragraph({spacing:{after:360},children:[run(brief.author,{size:24,bold:true,color:theme.accent})]}));
-  if(image){const scale=Math.min(460/image.width,260/image.height);paragraphs.push(new Paragraph({spacing:{before:160,after:320},children:[new ImageRun({type:image.mime==='jpeg'?'jpg':'png',data:image.bytes,transformation:{width:Math.round(image.width*scale),height:Math.round(image.height*scale)},altText:{title:'Creator supplied cover image',description:'Image supplied by the product creator',name:'Cover image'}})]}));}
-  let firstBody=true,wordLayout='teaching';
-  for(const [index,block] of blocks.entries()){
-    if(index===0&&block.kind==='heading'&&block.text.trim().toLowerCase()===title.toLowerCase())continue;
-    const heading=block.kind==='heading';
-    if(heading&&block.level<=2)wordLayout=design.sections.find(section=>section.title===block.text)?.layout||'teaching';
-    const isPrompt=wordLayout==='exercise'&&/_{3,}\s*$/.test(block.text),displayText=isPrompt?block.text.replace(/\s*_{3,}\s*$/,''):block.text;
-    paragraphs.push(new Paragraph({
-      ...(heading?{heading:block.level<=2?HeadingLevel.HEADING_1:HeadingLevel.HEADING_2,keepNext:true}:{}),
-      ...(block.bullet?{bullet:{level:0}}:{}),
-      pageBreakBefore:firstBody||(heading&&wordLayout==='exercise'),
-      spacing:{before:heading?240:0,after:heading?240:170,line:310},
-      children:[run(('checked' in block?(block.checked?'[x] ':'[ ] '):'')+displayText,{bold:heading,color:heading?theme.accent:theme.ink,...(block.kind==='quote'?{italics:true}:{})})]
-    }));
-    if(isPrompt)for(let answer=0;answer<2;answer++)paragraphs.push(new Paragraph({spacing:{before:100,after:120,line:360},border:{bottom:{color:theme.muted,style:BorderStyle.SINGLE,size:3,space:4}},children:[run(' ')]}));
-    firstBody=false;
-  }
-  const doc=new Document({creator:brief.author.trim()||'Product creator',title:design.draft?`${draftLabel}: ${title}`:title,description:design.draft?draftLabel:brief.format,
-    styles:{default:{document:{run:{font:'Lato',size:23,color:theme.ink},paragraph:{spacing:{line:310}}}},
-      paragraphStyles:[{id:'Title',name:'Title',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:60,bold:true,color:theme.ink}},{id:'Heading1',name:'Heading 1',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:36,bold:true,color:theme.accent}},{id:'Heading2',name:'Heading 2',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:28,bold:true,color:theme.accent}}]},
-    sections:[{properties:{page:{size:{width:Math.round(geometry.width*20),height:Math.round(geometry.height*20)},margin:{top:1040,bottom:1040,left:1040,right:1040}}},
-      headers:{default:new Header({children:[new Paragraph({children:[run(title,{size:17,color:theme.muted})]})]})},
-      footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[...(design.draft?[run(draftLabel+'   ',{size:18,bold:true,color:theme.accent})]:[]),new TextRun({children:[PageNumber.CURRENT],size:18,color:theme.accent})]})]})},children:paragraphs}]
-  });return Packer.toBuffer(doc);
-}
-export async function exportProduct(raw,options={}){
+async function exportDesign(raw,options={}){
   const project=projectSchema.parse(raw),brief=project.brief,manuscript=brief.productDraft;
   const blocks=parseManuscript(manuscript),draft=options.draft===true;
   const bodyLength=blocks.filter(block=>block.kind==='body'||block.kind==='list'||block.kind==='code').reduce((length,block)=>length+block.text.length,0);
@@ -88,11 +55,22 @@ export async function exportProduct(raw,options={}){
   if(design.hasPresenterNotes&&design.audienceBodyLength<80)throw new Error('Add actual audience-facing slide content before exporting. Presenter notes alone are not a presentation. Your draft is unchanged.');
   const slug=design.title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||'digital-product';
   const basename=slug+(draft?'-sample':'');
+  return {project,brief,manuscript,design,basename,draft};
+}
+// Internal upload source for a verified Canva connection; never a local download.
+export async function exportCanvaSource(raw,options={}){
+  const {brief,design,basename}=await exportDesign(raw,options),bytes=Buffer.from(await makeDeck(design,brief));
+  if(bytes.length>10500000)throw new Error('This presentation is too large for one Canva transfer. Split it into smaller volumes. Your draft is unchanged.');
+  return {name:`${basename}-canva-source.pptx`,mimeType:'application/vnd.openxmlformats-officedocument.presentationml.presentation',bytes,pages:design.pages.length};
+}
+export async function exportProduct(raw,options={}){
+  const {project,brief,manuscript,design,basename,draft}=await exportDesign(raw,options);
   const markdown=draft?`> ${draftLabel}\n\n${manuscript}`:manuscript;
   const file=(name,mimeType,bytes)=>({name,mimeType,blob:Buffer.from(bytes).toString('base64')});
-  const [pdf,docx,pptx]=await Promise.all([makePdf(design,brief),makeWord(design,brief),makeDeck(design,brief)]);
-  const files=[file(`${basename}.pdf`,'application/pdf',pdf),file(`${basename}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document',docx),file(`${basename}-canva.pptx`,'application/vnd.openxmlformats-officedocument.presentationml.presentation',pptx),file(`${basename}.md`,'text/markdown',Buffer.from(markdown)),file(`${basename}-project.json`,'application/json',Buffer.from(JSON.stringify({version:1,...(draft?{draft:true,status:draftLabel}:{}),project,...(design.image?{coverImage:design.image.data}:{})},null,2)))];
+  const pdf=await makePdf(design,brief);
+  const files=[file(`${basename}.pdf`,'application/pdf',pdf),file(`${basename}.md`,'text/markdown',Buffer.from(markdown))];
+  const checkpoint=file(`${basename}-project.json`,'application/json',Buffer.from(JSON.stringify({version:1,...(draft?{draft:true,status:draftLabel}:{}),project,...(design.image?{coverImage:design.image.data}:{})},null,2)));
   if(brief.listingCopy?.trim())files.push(file(`${basename}-listing.md`,'text/markdown',Buffer.from(draft?`> ${draftLabel}\n\n${brief.listingCopy}`:brief.listingCopy)));
-  if(files.reduce((length,item)=>length+item.blob.length,0)>14000000)throw new Error('This product is too large for one local export. Split it into smaller volumes. Your draft is unchanged.');
-  return {pages:design.pages.length,files};
+  if(files.reduce((length,item)=>length+item.blob.length,checkpoint.blob.length)>14000000)throw new Error('This product is too large for one local export. Split it into smaller volumes. Your draft is unchanged.');
+  return {pages:design.pages.length,files,checkpoint};
 }

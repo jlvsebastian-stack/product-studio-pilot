@@ -23,7 +23,7 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     let url;try{url=new URL(req.url,`http://${req.headers.host}`);}catch{return json(res,400,{error:'Invalid address.'});}
     const maxBody=url.pathname==='/api/references'?MAX_REFERENCE_BODY:MAX_BODY;
     if(req.method==='GET'){
-      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.7'});
+      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.8'});
       if(url.pathname==='/api/models')return json(res,200,modelCatalog);
       if(url.pathname==='/api/status'){
         try{return json(res,200,await providers.status(providerId(url.searchParams.get('provider')||'chatgpt')));}catch(error){return json(res,400,{error:error.message});}
@@ -68,16 +68,19 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
         if(!draft&&body.reviewed!==true)throw new Error('Review the current content and confirm it before exporting.');
         const result=await exporter({stage:draft?9:12,stageReady:!draft,summary:draft?'Draft sample for external review.':'Creator-reviewed local export.',brief:body.brief},{coverImage:body.coverImage,draft});
         const zip=new JSZip(),files=new Map();
-        for(const f of result.files){const bytes=Buffer.from(f.blob,'base64');files.set(f.name,{name:f.name,mimeType:f.mimeType,bytes});if(f!==result.files[4])zip.file(f.name,bytes);}
-        zip.file('READ-ME.txt','PDF: designed product pages. Word and Markdown: editable source. PowerPoint: editable pages for Canva import; inspect the import before sale. No native Canva or Google Workspace file has been created automatically. Save project in the app to back up the full interview. Personal preferences are not part of these product files.\n');
-        const archiveName=result.files[0].name.replace(/\.pdf$/,'-complete.zip');
+        const publicFiles=result.files.filter(file=>(file.mimeType==='application/pdf'&&/\.pdf$/i.test(file.name))||(file.mimeType==='text/markdown'&&/\.md$/i.test(file.name)));
+        const pdf=publicFiles.find(file=>file.mimeType==='application/pdf'),markdown=publicFiles.find(file=>file.mimeType==='text/markdown'&&file.name===pdf?.name.replace(/\.pdf$/i,'.md'))||publicFiles.find(file=>file.mimeType==='text/markdown');
+        if(!pdf||!markdown)throw new Error('The export is missing its PDF or Markdown source. Your project is unchanged.');
+        for(const f of publicFiles){const bytes=Buffer.from(f.blob,'base64');files.set(f.name,{name:f.name,mimeType:f.mimeType,bytes});zip.file(f.name,bytes);}
+        zip.file('READ-ME.txt','PDF: designed audience-facing product pages. Markdown: complete editable source, including presenter notes when present. Native Canva presentations and Google Docs links are provided separately only after their cloud files have been created and verified. Save project in the app to back up the full interview. Private project checkpoints and personal preferences are not part of these product files.\n');
+        const archiveName=pdf.name.replace(/\.pdf$/i,'-complete.zip');
         files.set(archiveName,{name:archiveName,mimeType:'application/zip',bytes:await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'})});
         const id=randomBytes(24).toString('hex');
         for(const [key,value]of packages)if(value.expires<now())packages.delete(key);
         while(packages.size>=3)packages.delete(packages.keys().next().value);
         packages.set(id,{expires:now()+3600000,files});
         const link=f=>({name:f.name,url:`/downloads/${id}/${encodeURIComponent(f.name)}`});
-        return json(res,200,{draft,pages:result.pages,files:{pdf:link(result.files[0]),editable:link(result.files[1]),canva:link(result.files[2]),markdown:link(result.files[3]),project:link(result.files[4]),zip:link({name:archiveName})}});
+        return json(res,200,{draft,pages:result.pages,files:{pdf:link(pdf),markdown:link(markdown),zip:link({name:archiveName})}});
       }
       return json(res,404,{error:'Not found.'});
     }catch(error){

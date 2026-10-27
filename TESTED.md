@@ -1,5 +1,17 @@
 # Local pilot evidence — 28 October 2026
 
+## Version 0.3.8: Canva and Google Docs destinations, Office-free local files
+
+PASS: combined suite **216/216** at exact source **36e07f4c3034672eb1397c628c65169a54a98f22**, with one independent review and correction-only acceptance. The browser requires runtime0.3.8 before exposing delivery actions, preserving all project and preference state. Public downloads and sale ZIPs contain PDF and Markdown/plain text, never Office files or private checkpoints. Office input references remain supported. Internal Canva transfer serialization is not a public download or a completed native delivery.
+
+PASS: normal browser controls on a separate localhost origin created an actual fictional four-slide package. The visible links were PDF, Text (Markdown) and Complete package; its downloaded ZIP contained only the PDF, Markdown and READ-ME. All four presenter-note markers remained in Markdown. The creator's project and exact Sol/Medium selection on127.0.0.1 were preserved. An unchanged launch test encountered one transient Windows port EACCES before the final unchanged combined rerun passed.
+
+PASS, separate native capability fixture: a real Canva test presentation was created through the connected tool. Its supplied notes were initially absent; an isolated Chrome task tab added four native presenter-note sections, and independent Canva tool readback confirmed their correct page associations. Canva generation paraphrased the fictional slide content, so this is native notes/editing capability evidence, not approved-source fidelity or automatic local-app publishing. Review and editing use an external Canva link; no editor embedding is required.
+
+PARTIAL: optional Canva/Google Docs links render only for verified HTTPS native editor URL shapes. Automatic native cloud creation from the local app is not yet connected. Official Codex app-server can surface a normal Google Docs write approval, while the earlier noninteractive exec route could not. This capability probe is separate from the shipped interview/export flow; do not infer end-to-end native delivery from tool discovery or a created blank document.
+
+UNRUN: another person's independent installation/subscription, live eligible Claude, macOS execution, an independent complete twelve-stage creator trial and the local app's automatic Canva/Google Docs delivery. PDF/text fallbacks are usable while that boundary remains incomplete.
+
 ## Version 0.3.7: webinar presentation with presenter notes
 
 PASS: combined suite **208/208** at exact source **7c171d1af525ee5d77a79d092f590f49a8369514**, independently reviewed with nine focused webinar guidance/export cases passing. Webinar and webinar-plus-course formats route to the presentation design skill and 16:9 geometry. Explicit per-slide Presenter notes/Speaker notes become native PPTX speaker notes, including source-slide continuations, and are excluded from visible slide content, PDF and preview. Complete Word/Markdown/project source is preserved. A first matching-title teaching slide is retained; unattached, empty or script-only notes fail with actionable recovery instead of silently dropping material. Ordinary guide/workbook behavior remains intact.

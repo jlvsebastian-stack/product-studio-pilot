@@ -49,21 +49,24 @@ test('export passes the selected image to the exporter and retains review gating
 });
 
 test('the product package excludes the private working brief checkpoint',async t=>{
-  const names=['sample.pdf','sample.docx','sample.pptx','sample.md','sample-project.json'];
-  const exporter=async()=>({pages:1,files:names.map((name,index)=>({name,mimeType:index===4?'application/json':'application/octet-stream',blob:Buffer.from(index===4?'private working brief':'product content').toString('base64')}))});
+  const source=(name,mimeType,content='product content')=>({name,mimeType,blob:Buffer.from(content).toString('base64')});
+  const checkpoint=source('sample-project.json','application/json','private working brief');
+  const exporter=async()=>({pages:1,checkpoint,files:[checkpoint,source('old.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'),source('sample.md','text/markdown'),source('old.pptx','application/vnd.openxmlformats-officedocument.presentationml.presentation'),source('sample.pdf','application/pdf')]});
   const url=await server(t,{exporter});
   const response=await post(url,'/api/export-product',{brief:freshProject().brief,reviewed:true});
   assert.equal(response.status,200);
   const {files}=await response.json();
+  assert.deepEqual(Object.keys(files).sort(),['markdown','pdf','zip']);
   const zip=await JSZip.loadAsync(await(await fetch(url+files.zip.url)).arrayBuffer());
-  assert.ok(zip.file('sample.pdf'));assert.equal(zip.file('sample-project.json'),null);
-  assert.equal(await(await fetch(url+files.project.url)).text(),'private working brief');
+  assert.ok(zip.file('sample.pdf'));assert.ok(zip.file('sample.md'));assert.equal(zip.file('sample-project.json'),null);
+  assert.equal(zip.file('old.docx'),null);assert.equal(zip.file('old.pptx'),null);
+  const directory=files.pdf.url.slice(0,files.pdf.url.lastIndexOf('/')+1);
+  for(const name of ['sample-project.json','old.docx','old.pptx'])assert.equal((await fetch(url+directory+name)).status,404);
 });
 
 test('a draft sample can be downloaded for external review without claiming final approval',async t=>{
   let received;
-  const names=['sample.pdf','sample.docx','sample.pptx','sample.md','sample-project.json'];
-  const exporter=async(project,options)=>{received={project,options};return {pages:1,files:names.map(name=>({name,mimeType:'application/octet-stream',blob:Buffer.from('Draft sample').toString('base64')}))};};
+  const exporter=async(project,options)=>{received={project,options};return {pages:1,files:[['sample.pdf','application/pdf'],['sample.md','text/markdown']].map(([name,mimeType])=>({name,mimeType,blob:Buffer.from('Draft sample').toString('base64')}))};};
   const url=await server(t,{exporter});
   const response=await post(url,'/api/export-product',{brief:freshProject().brief,draft:true});
   assert.equal(response.status,200);

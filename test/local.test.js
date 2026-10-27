@@ -128,7 +128,7 @@ test('interview uses real skills, preserves context and prevents invented market
 test('real local HTTP server protects host/origin, serves only public files, and supports interview/export/download',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'product-studio-test-'));
   await mkdir(join(directory,'public'));await writeFile(join(directory,'public','index.html'),'<h1>Product Studio</h1>');await writeFile(join(directory,'public','app.js'),'// public app');
-  const testExporter=async()=>({pages:2,files:[['book.pdf','application/pdf'],['book.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],['book-canva.pptx','application/vnd.openxmlformats-officedocument.presentationml.presentation'],['book.md','text/markdown'],['book-project.json','application/json']].map(([name,mimeType])=>({name,mimeType,blob:Buffer.from('actual-test-file-bytes').toString('base64')}))});
+  const testExporter=async()=>({pages:2,files:[['book.pdf','application/pdf'],['book.md','text/markdown']].map(([name,mimeType])=>({name,mimeType,blob:Buffer.from('actual-test-file-bytes').toString('base64')}))});
   const app=await startLocalServer({port:0,openBrowser:false,providers:appProviders,publicDirectory:pathToFileURL(join(directory,'public')+'/'),exporter:testExporter});
   const post=(path,body,origin=app.url)=>fetch(app.url+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
   try{
