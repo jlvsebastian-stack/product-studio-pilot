@@ -114,6 +114,7 @@ test('missing core decisions ask one purposeful question instead of a personal q
   for(const interviewStage of [2,3,4,6,7,8]){
     const result=await run(request({interviewStage,brief:{...blank(),topic}}),reply({}, {stageReady:true,message:'What was your childhood like? What were your biggest mistakes?'}));
     assert.equal(result.stageReady,false,`stage ${interviewStage}`);
+    if(interviewStage===7){assert.match(result.message,/couldn.t finish|try again/i);continue;}
     assert.equal((result.message.match(/\?/g)||[]).length,1,`stage ${interviewStage}`);
     assert.match(result.message,/helps?|so (?:we|I)|to (?:choose|shape|build|draft|focus)/i);
     assert.doesNotMatch(result.message,/childhood|biggest mistakes/i);

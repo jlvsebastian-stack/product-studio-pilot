@@ -67,6 +67,7 @@ The conversation is happening INSIDE this application. Do not tell the human to 
 Follow the creator-interview and applicable craft skills below. Start with the smallest useful baseline, reuse earlier answers, then propose the next decision or create the next output. Ask at most one easy, indispensable question only if its answer changes that output. EVERY question must explicitly explain what its answer will help choose, write or improve in this product: name the relevant offer, outline, lesson, section, example or exercise. Do not ask out of personal curiosity, repeat answered questions, or demand exact remembered wording, anecdotes, mistakes or a full method before proceeding. Do not invent the creator's experience.
 Be a cheerful, supportive expert creation partner in the CHAT. Use natural, concise language, with brief encouragement tied to what the creator actually supplied. Reassure a first-time creator that we can work it out together, then take the useful next step. Point to visible progress in their brief, offer, outline or draft. Avoid patronizing praise, forced excitement, uniform recaps, backstage labels and research homework. Keep a good concise proposal in your own natural voice rather than reciting a template. The manuscript follows the creator's chosen tone, audience and style preferences; do not impose the chat personality on the product.
 COLLABORATION THROUGHOUT: Understand enough → suggest a direction → build something useful → get feedback → improve together. Contribute useful recommendations, reasons, research and drafts; the creator supplies experience and judgment and chooses what fits. Answer the creator's questions first with a plain explanation and a project-specific example, rather than another questionnaire. Naturally invite them to ask whenever something is unclear, at the start and unfamiliar decisions, without a repeated sign-off. If you need clarity, explain what the missing answer changes and ask one easy question with a starting option. Being unsure or asking a question is not approval to advance, expand or revise. Keep explanations in chat and preserve the creator's manuscript voice.
+FORMAT CHOICE: before asking which format to choose, explain guide, checklist, template kit, workbook, course and webinar in short descriptions. For EACH, describe what this specific product would contain and how this buyer would use it, based on the known topic, outcome and offer; do not just list names. Recommend a fit with a reason when useful, then ask one choice question. Text descriptions only, no visuals or premature manuscript. A webinar can be a live or recorded teaching session; we can prepare its session plan, demonstration, speaker script, slide content and participant follow-up materials, but hosting and recording happen separately. A course's teaching materials are not already-recorded lessons. A suggestion is not the creator's confirmed format.
 The app controls the stage and advances only after explicit human approval. stageReady means sufficient evidence, not a turn count. Remain at selected stage ${data.interviewStage}.
 Accumulate the confirmed brief without erasing earlier details. Explain briefly what changed in the visible brief, outline, sample or product. Keep backstage chat out of productDraft. A workbook is one format, never the process.
 Stages1-8 develop facts, offer and outline; do not create or expand productDraft. Stage9 agrees voice/design and creates one representative sample with at most one ## section heading and ### subheadings. The creator must approve the sample before expansion. Stage10 creates at most one meaningful section per response and waits for feedback before another. Refine an unapproved section rather than adding sections. Stage11 reviews accuracy, substance, usability and design. Stage12 offers packaging and optional companions/listing copy.
@@ -260,9 +261,21 @@ const decisionQuestions={
   3:'To choose examples and instructions at the right level, who is the first reader you want this product to help?',
   4:'To shape a focused offer, which reader and practical result should we start with?',
   6:'To shape the offer before choosing its format, what useful help should the product give its intended reader?',
-  7:'To choose how the reader will use the product, which format fits best: a guide, checklist, templates, workbook or course materials?',
+  7:'To choose how the buyer will use the product, which format would you like us to develop?',
   8:'To draft a useful outline, what main task should its sections take the reader through?'
 };
+function describedFormats(message,brief){
+  const words=value=>new Set([...evidenceWords(value)].map(word=>word.replace(/s$/,'')));
+  const known=words([brief.topic,brief.outcome,brief.offer,brief.method,brief.outline].join(' '));
+  const sections=[...message.matchAll(/(?:^|\n)\s*(?:[-*]|\d+[.)])?\s*(?:\*\*)?(Guide|Checklist|Template(?: kit|s)?|Workbook|Course|Webinar)(?:\*\*)?\s*[:—–-](?:\*\*)?\s*([^\n]+)/gi)];
+  return ['guide','checklist','template','workbook','course','webinar'].every(name=>sections.some(section=>section[1].toLowerCase().startsWith(name)&&section[2].split(/\s+/).length>=8&&[...words(section[2])].some(word=>known.has(word))));
+}
+function focusFormatQuestion(message){
+  const questions=message.match(/[^.!?\n]*\?/g)||[];
+  if(questions.length===1&&/\b(?:format|option|type)\b/i.test(questions[0])&&!/\b(?:childhood|friendship|parents|memories|personal life)\b/i.test(questions[0]))return message;
+  return message.replace(/[^.!?\n]*\?/g,'').trim()+'\n\n'+decisionQuestions[7];
+}
+const formatRetry='I couldn’t finish useful descriptions for this product yet. Send “explain the formats” and I can try again; you don’t need to choose from an unexplained list.';
 function paceBaseline(data,response,allowNatural=true){
   const stage=data.interviewStage,b=response.brief;
   if(stage===1&&!discoveryBaseline(data,response)){
@@ -279,7 +292,8 @@ function paceBaseline(data,response,allowNatural=true){
   if(!decisionQuestions[stage])return;
   const ready=stageFields[stage].every(key=>usefulField(b[key]))&&(stage!==1||discoveryBaseline(data,response));
   response.stageReady=ready;
-  if(!ready){if(!(allowNatural&&directExplanation(data,response)))response.message=reassurance(data)+decisionQuestions[stage];return;}
+  if(stage===7&&allowNatural&&describedFormats(response.message,data.brief)){response.message=focusFormatQuestion(response.message);return;}
+  if(!ready){if(!(allowNatural&&directExplanation(data,response)))response.message=stage===7?formatRetry:reassurance(data)+decisionQuestions[stage];return;}
   if(allowNatural&&(directExplanation(data,response)||naturalProposal(response))){
     response.summary=plainDirection(response.summary);
     if(/more personal detail|exact wording|more questions|not enough/i.test(response.summary))response.summary=proposalText(b.outcome||b.buyer||b.topic,100)+'.';
@@ -367,7 +381,13 @@ function gateReadiness(data,response){
 export async function interview(raw,providers){
   const {data,prompt}=interviewPrompt(raw);
   const images=data.references.filter(reference=>reference.kind==='image'&&reference.status!=='unavailable'&&reference.imageData).map(reference=>({name:reference.name,mimeType:reference.mimeType,data:reference.imageData.slice(reference.imageData.indexOf(',')+1)}));
-  const response=interviewResponseSchema.parse(await providers.infer(data.provider,prompt,responseJsonSchema,{search:data.interviewStage===5,model:data.model,reasoningEffort:data.reasoningEffort,images}));
+  const options={search:data.interviewStage===5,model:data.model,reasoningEffort:data.reasoningEffort,images};
+  let response=interviewResponseSchema.parse(await providers.infer(data.provider,prompt,responseJsonSchema,options));
+  if(data.interviewStage===7&&!usefulField(data.brief.format)&&!usefulField(response.brief.format)&&!describedFormats(response.message,data.brief)&&(!directExplanation(data,response)||/\b(?:guide|checklist|templates?|workbook|course|webinar)\b/i.test(response.message))){
+    response=interviewResponseSchema.parse(await providers.infer(data.provider,prompt+'\nFORMAT CORRECTION: The previous reply did not describe concrete contents for each format. Return the same response schema with six labeled paragraphs: Guide:, Checklist:, Template kit:, Workbook:, Course:, Webinar:. In EACH paragraph name actual proposed contents drawn from this project’s topic/outcome/offer, explain how the buyer uses them and avoid generic placeholders such as “relevant templates” or “important steps.” Finish with one format-choice question. Do not select a format, invent creator experience, draft the manuscript, or claim recording/hosting. This is one bounded rewrite, not a new interview question.',responseJsonSchema,options));
+    response.brief.format=data.brief.format;
+    if(!describedFormats(response.message,data.brief)){response.message=formatRetry;response.stageReady=false;}
+  }
   for(const key of briefKeys)if(key!=='productDraft'&&!response.brief[key].trim()&&data.brief[key])response.brief[key]=data.brief[key];
   const rejectedReferenceClaim=protectReferenceClaims(data,response);
   paceBaseline(data,response,!rejectedReferenceClaim);
