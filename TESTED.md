@@ -1,5 +1,25 @@
 # Local pilot evidence — 27 October 2026
 
+## Version 0.3: creator learning and visible project progress
+
+PASS: final combined suite **81/81**. Covers retained projects and legacy migration, unsent answers, browser-storage failure recovery, explicit versus inferred preferences, edit/forget/pause, restored preference capacity, actual model/quality argv, stage and section gates, exact approved-text preservation/revision/undo, grounded completion offers, stale sample/preview responses, local HTTP boundaries and private-checkpoint exclusion from the sale ZIP. Existing subscription/process shutdown tests remain passing.
+
+PASS: live subscribed **GPT-6 Astra · Medium** through the normal UI and official local helper. The reply asked how the illustrative craft-fair checklist items were chosen, kept the scenario labeled illustrative and held stage1. It remembered the exact explicit instruction “Use plain English and short, practical steps.” The instruction persisted after reload; an imported separate project retained that profile. A real stage11-to12 completion request produced two relevant optional companion ideas and grounded listing copy; the approved Markdown remained byte-identical to the source. Synthetic workflow messages did not add preferences.
+
+The available account returned model_not_found for explicit GPT-6.1 Sol. Astra is therefore the verified pilot default; Sol remains an account-dependent alternative. Restricted Windows execution also produced an app-server AccessDenied error despite connected login status. Running the official helper with normal local app permissions resolved that separate issue. No token file, login reset, API key, administrator bypass or automatic model fallback was used. The app explains these failures separately.
+
+PASS: desktop1280×720 and phone390×844 rendered controls, retained projects/unsent answers, profile editing/forget/pause, approval/undo, selected-model labels, non-obscuring busy strip and corrected account-panel clipping. Latest workspace defaults to Project progress with outline, current section, approved decisions and next step. Page preview is optional. Final fresh startup at the normal8767 address retained the earlier craft-fair project, selected recommended Astra, enabled Send and produced no browser-console errors.
+
+PASS: actual normal-control draft sample downloads in PDF, DOCX and editable PPTX. Every page of the eight-page sample PDF is marked DRAFT SAMPLE; Word is marked and all eight PPTX slides contain native editable text. The final eight-page product and ZIP were also downloaded through normal controls. The ZIP contains PDF/DOCX/PPTX/Markdown/listing/README, excludes the private JSON working brief, and its Markdown exactly matches the approved source. PDF author is Illustrative author, not the app creator credit.
+
+PASS: shared layout uses A4 guides and16:9 slides, native process graphics and usable worksheet lines. Design-worker actual PDF checks retained32/32 semantic source blocks with no text outside safe page bounds; actual guide/slide PPTX files were rendered headlessly and inspected. Genuine bounded PNG/JPEG assets and font provenance were checked. Word content/editability is proven; Word visual rendering is UNRUN because LibreOffice was unavailable.
+
+PASS: independent exact-head review at runtime source **5a2a986c163b92ef6f9d09bdd4c0ee70725ee494**, after fixing reproduced heading-boundary and preference-capacity issues and including the missing capacity-status shell element. Correction-only review accepted the fixes; later evidence-only documentation does not alter that runtime.
+
+UNRUN: actual Mac, live eligible Claude inference, another person's installation/subscription, independent real-creator twelve-stage completion, automatic native Canva/Google Workspace creation and AI image generation. Canva/Docs review currently uses clearly described PPTX/DOCX import handoffs; the app never marks a native cloud file as created. Illustration fixtures and mechanics tests do not establish market demand or sales readiness.
+
+## Earlier version 0.2 evidence
+
 PASS:12 focused tests cover subscription-only provider status; credential-environment and tool isolation; explicit vendor sign-in; correct JSON parsing; process termination confirmed before release (including an actual owned background process); held ownership when termination is unconfirmed; skill-driven interviews; local Host/Origin and source-file boundaries; review-gated ZIP/download behavior; and port reuse/fallback.
 
 PASS: actual official Codex0.157.1 and Claude Code2.1.311 package binaries resolve on Windows. Existing ChatGPT subscription status is connected. Claude is installed but not signed in locally; no eligible Claude Code connection or live Claude reply was tested. Product Studio reads neither provider's credential file.

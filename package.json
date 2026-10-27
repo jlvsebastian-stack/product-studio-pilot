@@ -1,6 +1,6 @@
 {
   "name": "product-studio-local",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,7 +11,7 @@
     "start": "node scripts/launch.js",
     "serve": "node src/local-server.js",
     "setup": "node scripts/setup.js",
-    "test": "node --test test/local.test.js test/launcher.test.js"
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@openai/codex": "0.157.1",

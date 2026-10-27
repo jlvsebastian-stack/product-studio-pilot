@@ -1,5 +1,7 @@
-# Product Studio
+# Kaya Ko Yan! Digital Product Creator
 
 A downloadable localhost app for Windows and Mac. The full supportive interview happens in the app's own browser interface using the current person's ChatGPT or Claude subscription through official local tools. No hosted backend, platform account system, shared AI login or KKY connection.
 
-Preserve the incumbent warm neutral/terracotta interface from the local conversation prototype. Add only clear provider setup and launch controls. Use connected cloud apps where a supported and tested connection is present. Never use desktop controls or the user's active browser tab. Personalization must come from this creator, with all twelve stages and meaningful follow-ups; a workbook is an output choice, not the workflow.
+Preserve the incumbent warm neutral/terracotta interface and prominent product workspace from the local conversation prototype. Extend it with clear project, preference and model controls. Use connected cloud apps where a supported and tested connection is present. Never use desktop controls or the user's active browser tab. Personalization must come from this creator, with all twelve stages and meaningful follow-ups; a workbook is an output choice, not the workflow.
+
+The product workspace is prominent and shows the brief, outline, designed sample and actual pages developing through conversation. The app credit is Created by Josh Sebastian; exported products use their creator's author details. New/Save/Open project controls preserve work. Explicit style preferences are remembered automatically in a local editable/forgettable profile; inferred preferences require confirmation. Stage gates, small-section approvals, deliberate page design and actual selected-model parameters support useful finished products. Relevant companions and listing materials are offered at completion.

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { modelOptions } from './models.js';
 
 const ROOT=dirname(dirname(fileURLToPath(import.meta.url)));
 const PROVIDERS=new Set(['chatgpt','claude']);
@@ -112,14 +113,17 @@ export function runProcess(command,args,{input='',cwd,env,timeout=30000,maxOutpu
 
 function failureMessage(id,result){
   const text=result.stdout+'\n'+result.stderr;
+  if(/failed to initialize (?:in-process )?app-server client/i.test(text)&&/access is denied|os error 5/i.test(text))return 'Windows denied the local AI helper access to its normal runtime. Close Product Studio and relaunch it with normal local permissions, then retry. Your draft is saved.';
+  if(/(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not available|unavailable|not found|does not exist|not have access|invalid|cannot|can.t use)|(?:unsupported|unknown|invalid).{0,40}(?:model|effort)|access.{0,40}(?:model)/i.test(text))return `The selected ${label(id)} model or quality setting is unavailable for this account or local helper. Choose another model or quality setting and retry. Your draft is saved.`;
   if(/limit|quota|rate.?limit|usage.?cap/i.test(text))return `Your ${label(id)} usage limit was reached. Your conversation is saved; wait for the limit to reset and retry.`;
   if(/401|unauthorized|authentication|not logged|login|sign.?in/i.test(text))return `Sign in to ${label(id)} again, then retry. Your draft is saved.`;
   return `${label(id)} could not finish this request. Check the account connection and retry; your draft is saved.`;
 }
 
-export function inferenceArguments(id,{schemaPath,outputPath,search=false,model}={}){
-  if(id==='chatgpt')return ['--disable','shell_tool','--disable','apps','--disable','multi_agent',...(search?['--search']:[]),'exec','--ignore-user-config',...(model?['--model',model]:[]),'-c','model_reasoning_effort="low"','--ephemeral','--skip-git-repo-check','--sandbox','read-only','--output-schema',schemaPath,'--output-last-message',outputPath,'-'];
-  return ['-p','--output-format','json','--json-schema',schemaPath,'--tools',search?'WebSearch,WebFetch':'','--allowedTools',search?'WebSearch,WebFetch':'','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--setting-sources','','--no-chrome','--restricted','--safe-mode','--no-session-persistence','--disable-slash-commands','--permission-mode','dontAsk','--max-turns','12'];
+export function inferenceArguments(id,{schemaPath,outputPath,search=false,model,reasoningEffort}={}){
+  const selected=modelOptions(id,{model,reasoningEffort});
+  if(id==='chatgpt')return ['--disable','shell_tool','--disable','apps','--disable','multi_agent',...(search?['--search']:[]),'exec','--ignore-user-config','--model',selected.model,'-c',`model_reasoning_effort="${selected.reasoningEffort}"`,'--ephemeral','--skip-git-repo-check','--sandbox','read-only','--output-schema',schemaPath,'--output-last-message',outputPath,'-'];
+  return ['-p','--model',selected.model,'--effort',selected.reasoningEffort,'--output-format','json','--json-schema',schemaPath,'--tools',search?'WebSearch,WebFetch':'','--allowedTools',search?'WebSearch,WebFetch':'','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--setting-sources','','--no-chrome','--restricted','--safe-mode','--no-session-persistence','--disable-slash-commands','--permission-mode','dontAsk','--max-turns','12'];
 }
 
 export function createProviderManager({env=process.env,resolveCli=resolveVendorCli,execute=runProcess,spawnFn=spawn}={}){
@@ -155,15 +159,16 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
     child.on('error',done);child.on('close',done);
     return {provider:id,started:true,message:`Complete ${label(id)}'s own sign-in in your browser, then choose Check connection.`};
   }
-  async function infer(id,prompt,schema,{search=false}={}){
-    providerId(id);if(busy||terminationHolds.size)throw new Error(blockedReason||'Your AI is already working. Wait for the current reply to finish.');busy=true;
+  async function infer(id,prompt,schema,{search=false,model,reasoningEffort}={}){
+    providerId(id);const selected=modelOptions(id,{model,reasoningEffort});
+    if(busy||terminationHolds.size)throw new Error(blockedReason||'Your AI is already working. Wait for the current reply to finish.');busy=true;
     let directory,pendingExit;
     try{
       if(!(await status(id)).ready)throw new Error(`Connect your ${label(id)} subscription before sending a message.`);
       directory=await mkdtemp(join(tmpdir(),'product-studio-'));
       const schemaPath=join(directory,'schema.json'),outputPath=join(directory,'response.json');
       await writeFile(schemaPath,JSON.stringify(schema),{mode:0o600});
-      const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,model:id==='chatgpt'?env.PRODUCT_STUDIO_MODEL:undefined});
+      const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,...selected});
       const result=await execute(command(id),args,{input:prompt,cwd:directory,env:childEnv,timeout:search?180000:420000});
       if(result.code!==0)throw new Error(failureMessage(id,result));
       if(id==='chatgpt'){

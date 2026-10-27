@@ -5,28 +5,31 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createProviderManager, providerId } from './providers.js';
 import { interview } from './interview.js';
-import { exportProduct } from './exports.js';
+import { exportProduct, previewProduct } from './exports.js';
+import { modelCatalog } from './models.js';
 import JSZip from 'jszip';
 
-const MAX_BODY=300000;
+const MAX_BODY=2000000;
 const defaultPublic=new URL('../public/',import.meta.url);
-export function createLocalHandler({providers=createProviderManager(),publicDirectory=defaultPublic,exporter=exportProduct,now=Date.now}={}){
+export function createLocalHandler({providers=createProviderManager(),publicDirectory=defaultPublic,exporter=exportProduct,previewer=previewProduct,now=Date.now}={}){
   const packages=new Map();
   const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'}).end(JSON.stringify(value));};
   return async(req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
-    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; object-src 'none'; frame-ancestors 'none'");
+    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; base-uri 'none'; object-src 'none'; frame-ancestors 'none'");
     const port=req.socket.localPort,hosts=[`127.0.0.1:${port}`,`localhost:${port}`];
     if(!hosts.includes((req.headers.host||'').toLowerCase()))return json(res,403,{error:'This app accepts local connections only.'});
     let url;try{url=new URL(req.url,`http://${req.headers.host}`);}catch{return json(res,400,{error:'Invalid address.'});}
     if(req.method==='GET'){
-      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.2.0'});
+      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.0'});
+      if(url.pathname==='/api/models')return json(res,200,modelCatalog);
       if(url.pathname==='/api/status'){
         try{return json(res,200,await providers.status(providerId(url.searchParams.get('provider')||'chatgpt')));}catch(error){return json(res,400,{error:error.message});}
       }
-      if(url.pathname==='/'||url.pathname==='/index.html'||url.pathname==='/app.js'){
-        const file=url.pathname==='/app.js'?'app.js':'index.html';
-        try{const bytes=await readFile(new URL(file,publicDirectory));res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8'}).end(bytes);}
+      const staticFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/studio-store.js':'studio-store.js','/example-project.json':'example-project.json'};
+      if(Object.hasOwn(staticFiles,url.pathname)){
+        const file=staticFiles[url.pathname];
+        try{const bytes=await readFile(new URL(file,publicDirectory));res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8'}).end(bytes);}
         catch{json(res,500,{error:'The application files are missing. Download the complete package and run the launcher again.'});}return;
       }
       if(url.pathname.startsWith('/downloads/')){
@@ -52,12 +55,14 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     try{
       if(url.pathname==='/api/login')return json(res,200,await providers.login(providerId(body.provider||'chatgpt')));
       if(url.pathname==='/api/interview')return json(res,200,await interview(body,providers));
+      if(url.pathname==='/api/preview-product')return json(res,200,await previewer({stage:12,stageReady:false,summary:'Current product preview.',brief:body.brief},{coverImage:body.coverImage}));
       if(url.pathname==='/api/export-product'){
-        if(body.reviewed!==true)throw new Error('Review the current content and confirm it before exporting.');
-        const result=await exporter({stage:12,stageReady:true,summary:'Creator-reviewed local export.',brief:body.brief});
+        const draft=body.draft===true;
+        if(!draft&&body.reviewed!==true)throw new Error('Review the current content and confirm it before exporting.');
+        const result=await exporter({stage:draft?9:12,stageReady:!draft,summary:draft?'Draft sample for external review.':'Creator-reviewed local export.',brief:body.brief},{coverImage:body.coverImage,draft});
         const zip=new JSZip(),files=new Map();
-        for(const f of result.files){const bytes=Buffer.from(f.blob,'base64');files.set(f.name,{name:f.name,mimeType:f.mimeType,bytes});zip.file(f.name,bytes);}
-        zip.file('READ-ME.txt','PDF: designed text product. Word and Markdown: editable source. PowerPoint: editable pages for Canva import; inspect the import before sale. No native Canva or Google Workspace file has been created automatically.\n');
+        for(const f of result.files){const bytes=Buffer.from(f.blob,'base64');files.set(f.name,{name:f.name,mimeType:f.mimeType,bytes});if(f!==result.files[4])zip.file(f.name,bytes);}
+        zip.file('READ-ME.txt','PDF: designed product pages. Word and Markdown: editable source. PowerPoint: editable pages for Canva import; inspect the import before sale. No native Canva or Google Workspace file has been created automatically. Save project in the app to back up the full interview. Personal preferences are not part of these product files.\n');
         const archiveName=result.files[0].name.replace(/\.pdf$/,'-complete.zip');
         files.set(archiveName,{name:archiveName,mimeType:'application/zip',bytes:await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'})});
         const id=randomBytes(24).toString('hex');
@@ -65,7 +70,7 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
         while(packages.size>=3)packages.delete(packages.keys().next().value);
         packages.set(id,{expires:now()+3600000,files});
         const link=f=>({name:f.name,url:`/downloads/${id}/${encodeURIComponent(f.name)}`});
-        return json(res,200,{pages:result.pages,files:{pdf:link(result.files[0]),editable:link(result.files[1]),canva:link(result.files[2]),markdown:link(result.files[3]),project:link(result.files[4]),zip:link({name:archiveName})}});
+        return json(res,200,{draft,pages:result.pages,files:{pdf:link(result.files[0]),editable:link(result.files[1]),canva:link(result.files[2]),markdown:link(result.files[3]),project:link(result.files[4]),zip:link({name:archiveName})}});
       }
       return json(res,404,{error:'Not found.'});
     }catch(error){

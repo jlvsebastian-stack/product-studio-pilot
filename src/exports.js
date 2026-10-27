@@ -1,134 +1,97 @@
-import { readFileSync } from 'node:fs';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, Header, Footer, PageNumber, AlignmentType, BorderStyle } from 'docx';
 import pptxgen from 'pptxgenjs';
 import { projectSchema } from './product.js';
+import { designProduct, pageSvg, fontBytes, geometry, parseManuscript, plain, draftLabel } from './page-design.js';
+export { parseManuscript, plain };
+const color=hex=>rgb(...[0,2,4].map(index=>parseInt(hex.slice(index,index+2),16)/255));
 
-const W=595.28,H=841.89,M=51;
-const fonts={regular:readFileSync(new URL('../fonts/Lato-Regular.ttf',import.meta.url)),bold:readFileSync(new URL('../fonts/Lato-Bold.ttf',import.meta.url))};
-const themes={clay:{accent:'97432F',pale:'F4E6DC'},sage:{accent:'345F4C',pale:'E7EFE7'},ink:{accent:'274F71',pale:'E7EDF4'}};
-const color=h=>rgb(...[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255));
-export function plain(text) {
-  return text.replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'$1 ($2)')
-    .replace(/\*\*([^*]+)\*\*/g,'$1').replace(/__([^_]+)__/g,'$1')
-    .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g,'$1').replace(/\*([^*\n]+)\*/g,'$1')
-    .replace(/`([^`]+)`/g,'$1');
+export async function previewProduct(raw,options={}){
+  const project=projectSchema.parse(raw),design=await designProduct(project,options);
+  return {pages:design.pages.map(page=>({svg:pageSvg(page),title:page.title,purpose:page.purpose})),pageCount:design.pages.length};
 }
-export function parseManuscript(markdown) {
-  const blocks=[];let paragraph=[],code=false;
-  const flush=()=>{if(paragraph.length) {blocks.push({kind:'body',text:plain(paragraph.join(' '))});paragraph=[];}};
-  for(const line of markdown.replace(/\r/g,'').split('\n')) {
-    if(line.startsWith('```')) {flush();code=!code;continue;}
-    if(code) {flush();blocks.push({kind:'body',text:line||' '});continue;}
-    const head=/^(#{1,6})\s+(.+)$/.exec(line);
-    if(head) {flush();blocks.push({kind:'heading',level:head[1].length,text:plain(head[2])});}
-    else if(/^\s*[-*+]\s+/.test(line)) {flush();blocks.push({kind:'list',text:'• '+plain(line.replace(/^\s*[-*+]\s+/,''))});}
-    else if(/^\s*\d+[.)]\s+/.test(line)) {flush();blocks.push({kind:'list',text:plain(line.trim())});}
-    else if(!line.trim()||/^\s*([-*])\1{2,}\s*$/.test(line)) flush();
-    else if(/^\s*>/.test(line)) {flush();blocks.push({kind:'quote',text:plain(line.replace(/^\s*>\s?/,''))});}
-    else if(/^\s*\|/.test(line)) {flush();if(!/^\s*\|[\s:|\-]+$/.test(line))blocks.push({kind:'body',text:plain(line.trim())});}
-    else paragraph.push(line.trim());
-  }
-  flush();return blocks;
-}
-function wrap(text,font,size,width) {
-  const lines=[];let current='';
-  for(const word of text.split(/\s+/)) {
-    if(!word)continue;
-    const candidate=current?`${current} ${word}`:word;
-    if(font.widthOfTextAtSize(candidate,size)<=width) {current=candidate;continue;}
-    if(current) {lines.push(current);current='';}
-    for(const char of word) {
-      if(current && font.widthOfTextAtSize(current+char,size)>width) {lines.push(current);current='';}
-      current+=char;
+async function makePdf(design,brief){
+  const geometry=design.geometry;
+  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
+  const regular=await pdf.embedFont(fontBytes.regular,{subset:true}),bold=await pdf.embedFont(fontBytes.bold,{subset:true});
+  const image=design.image?(design.image.mime==='png'?await pdf.embedPng(design.image.bytes):await pdf.embedJpg(design.image.bytes)):null;
+  for(const scene of design.pages){
+    const page=pdf.addPage([geometry.width,geometry.height]);
+    for(const item of scene.items){
+      if(item.type==='text')page.drawText(item.text,{x:item.x,y:geometry.height-item.y-item.size*0.82,size:item.size,font:item.bold?bold:regular,color:color(item.fill)});
+      else if(item.type==='rect')page.drawRectangle({x:item.x,y:geometry.height-item.y-item.h,width:item.w,height:item.h,...(item.fill?{color:color(item.fill)}:{opacity:0}),...(item.stroke?{borderColor:color(item.stroke),borderWidth:1}:{})});
+      else if(item.type==='ellipse')page.drawEllipse({x:item.x+item.w/2,y:geometry.height-item.y-item.h/2,xScale:item.w/2,yScale:item.h/2,color:color(item.fill)});
+      else if(item.type==='line')page.drawLine({start:{x:item.x,y:geometry.height-item.y},end:{x:item.x2,y:geometry.height-item.y2},thickness:item.width,color:color(item.stroke)});
+      else if(item.type==='image'&&image)page.drawImage(image,{x:item.x,y:geometry.height-item.y-item.h,width:item.w,height:item.h});
     }
   }
-  if(current)lines.push(current);
-  return lines.length?lines:[''];
+  pdf.setTitle(design.draft?`${draftLabel}: ${design.title}`:design.title);pdf.setAuthor(brief.author.trim()||'Product creator');pdf.setSubject(design.draft?draftLabel:brief.format||'Digital product');
+  return pdf.save();
 }
-export async function exportProduct(raw) {
-  const project=projectSchema.parse(raw),b=project.brief;
-  const manuscript=b.productDraft.trim();
-  if(manuscript.length<600 || parseManuscript(manuscript).filter(v=>v.kind==='body'||v.kind==='list').reduce((n,v)=>n+v.text.length,0)<450)
-    throw new Error('Add the actual teaching, examples, templates, or exercises before exporting. An outline alone is not a finished product.');
-  const blocks=parseManuscript(manuscript);
-  const title=b.title.trim()||blocks.find(v=>v.kind==='heading')?.text||b.topic.trim()||'My digital product';
-  if(title.length>180) throw new Error('Use a product title of 180 characters or fewer.');
-  const theme=themes[b.theme]||themes.clay;
-  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
-  const regular=await pdf.embedFont(fonts.regular,{subset:true}),bold=await pdf.embedFont(fonts.bold,{subset:true});
-  const coverage=fontkit.create(fonts.regular);
-  for(const char of new Set([title,b.author,b.outcome,manuscript].join(''))) {
-    if(!/\s/.test(char)&&!coverage.hasGlyphForCodePoint(char.codePointAt(0)))
-      throw new Error(`The pilot font cannot render “${char}”. Replace that symbol or choose a supported manuscript language before exporting. Your draft is unchanged.`);
+async function makeDeck(design,brief){
+  const geometry=design.geometry;
+  const deck=new pptxgen();deck.defineLayout({name:'Studio product',width:geometry.width/72,height:geometry.height/72});deck.layout='Studio product';
+  deck.author=brief.author.trim()||'Product creator';deck.subject=design.draft?draftLabel:'Editable product pages';deck.title=design.draft?`${draftLabel}: ${design.title}`:design.title;deck.lang='en';
+  deck.theme={headFontFace:'Lato',bodyFontFace:'Lato',lang:'en'};
+  for(const scene of design.pages){
+    const slide=deck.addSlide();
+    for(const item of scene.items){
+      if(item.type==='text')slide.addText(item.text,{x:item.x/72,y:(item.y-1.5)/72,w:(geometry.width-geometry.margin-item.x+3)/72,h:(item.h+3)/72,objectName:'studio-'+(item.role||'heading'),fontFace:'Lato',fontSize:item.size,bold:item.bold,color:item.fill,margin:0,breakLine:false,paraSpaceAfterPt:0,valign:'top',wrap:false});
+      else if(item.type==='rect'||item.type==='ellipse')slide.addShape(item.type==='rect'?deck.ShapeType.rect:deck.ShapeType.ellipse,{objectName:'studio-'+(item.role||'graphic'),x:item.x/72,y:item.y/72,w:item.w/72,h:item.h/72,fill:item.fill?{color:item.fill}:{color:'FFFFFF',transparency:100},line:item.stroke?{color:item.stroke,width:1}:{transparency:100}});
+      else if(item.type==='line')slide.addShape(deck.ShapeType.line,{objectName:'studio-'+(item.role||'rule'),x:Math.min(item.x,item.x2)/72,y:Math.min(item.y,item.y2)/72,w:Math.abs(item.x2-item.x)/72,h:Math.abs(item.y2-item.y)/72,line:{color:item.stroke,width:item.width},flipV:item.y2<item.y});
+      else if(item.type==='image')slide.addImage({data:item.image.data,x:item.x/72,y:item.y/72,w:item.w/72,h:item.h/72});
+    }
+    slide.addNotes(scene.purpose);
   }
-  const pages=[[]];let y=67;
-  const newPage=()=>{pages.push([]);y=57;};
-  const add=(text,size=11.5,isBold=false,fill='282E2A',gap=10)=>{
-    const font=isBold?bold:regular,leading=size*1.4;
-    for(const line of wrap(text,font,size,W-2*M)) {
-      if(y+leading>H-66)newPage();
-      pages.at(-1).push({text:line,x:M,y,size,bold:isBold,color:fill,height:leading});y+=leading;
-    } y+=gap;
-  };
-  add((b.format||'Digital product').toUpperCase(),10,true,theme.accent,40);
-  add(title,31,true,'282E2A',28);
-  if(b.outcome.trim())add(b.outcome.trim(),15,false,'4A514B',32);
-  if(b.author.trim())add(b.author.trim(),12,true,theme.accent,12);
-  newPage();
-  if(blocks[0]?.kind==='heading'&&blocks[0].text===title) blocks.shift();
-  for(const block of blocks) {
-    if(block.kind==='heading') {
-      const size=block.level<=2?19:14;
-      if(y>H-160)newPage();
-      y+=14;add(block.text,size,true,theme.accent,13);
-    } else add(block.text,11.5,false,block.kind==='quote'?theme.accent:'282E2A',11);
+  return deck.write({outputType:'nodebuffer'});
+}
+async function makeWord(design,brief){
+  const {theme,title,blocks,image}=design;
+  const run=(text,options={})=>new TextRun({text,...options});
+  const paragraphs=[new Paragraph({heading:HeadingLevel.TITLE,spacing:{before:800,after:420},children:[run(title,{bold:true,size:60,color:'25382F'})]})];
+  if(design.draft)paragraphs.unshift(new Paragraph({spacing:{before:0,after:180},children:[run(draftLabel,{size:24,bold:true,color:theme.accent})]}));
+  if(brief.outcome.trim())paragraphs.push(new Paragraph({spacing:{after:360},children:[run(brief.outcome,{size:28,color:theme.muted})]}));
+  if(brief.author.trim())paragraphs.push(new Paragraph({spacing:{after:360},children:[run(brief.author,{size:24,bold:true,color:theme.accent})]}));
+  if(image){const scale=Math.min(460/image.width,260/image.height);paragraphs.push(new Paragraph({spacing:{before:160,after:320},children:[new ImageRun({type:image.mime==='jpeg'?'jpg':'png',data:image.bytes,transformation:{width:Math.round(image.width*scale),height:Math.round(image.height*scale)},altText:{title:'Creator supplied cover image',description:'Image supplied by the product creator',name:'Cover image'}})]}));}
+  let firstBody=true,wordLayout='teaching';
+  for(const [index,block] of blocks.entries()){
+    if(index===0&&block.kind==='heading'&&block.text.trim().toLowerCase()===title.toLowerCase())continue;
+    const heading=block.kind==='heading';
+    if(heading&&block.level<=2)wordLayout=design.sections.find(section=>section.title===block.text)?.layout||'teaching';
+    const isPrompt=wordLayout==='exercise'&&/_{3,}\s*$/.test(block.text),displayText=isPrompt?block.text.replace(/\s*_{3,}\s*$/,''):block.text;
+    paragraphs.push(new Paragraph({
+      ...(heading?{heading:block.level<=2?HeadingLevel.HEADING_1:HeadingLevel.HEADING_2,keepNext:true}:{}),
+      ...(block.bullet?{bullet:{level:0}}:{}),
+      pageBreakBefore:firstBody||(heading&&wordLayout==='exercise'),
+      spacing:{before:heading?240:0,after:heading?240:170,line:310},
+      children:[run(('checked' in block?(block.checked?'[x] ':'[ ] '):'')+displayText,{bold:heading,color:heading?theme.accent:theme.ink,...(block.kind==='quote'?{italics:true}:{})})]
+    }));
+    if(isPrompt)for(let answer=0;answer<2;answer++)paragraphs.push(new Paragraph({spacing:{before:100,after:120,line:360},border:{bottom:{color:theme.muted,style:BorderStyle.SINGLE,size:3,space:4}},children:[run(' ')]}));
+    firstBody=false;
   }
-  // Remove only an unused trailing page, never a page containing manuscript text.
-  if(!pages.at(-1).length)pages.pop();
-  pages.forEach((items,index)=>{
-    const page=pdf.addPage([W,H]);
-    if(index===0)page.drawRectangle({x:0,y:H-14,width:W,height:14,color:color(theme.accent)});
-    else page.drawLine({start:{x:M,y:H-34},end:{x:W-M,y:H-34},thickness:0.7,color:color(theme.pale)});
-    items.forEach(item=>page.drawText(item.text,{x:item.x,y:H-item.y-item.size,size:item.size,font:item.bold?bold:regular,color:color(item.color)}));
-    page.drawText(String(index+1).padStart(2,'0'),{x:W-M-18,y:30,size:9,font:regular,color:color(theme.accent)});
-  });
-  pdf.setTitle(title);if(b.author)pdf.setAuthor(b.author);
-
-  const paragraphs=[new Paragraph({heading:HeadingLevel.TITLE,children:[new TextRun({text:title,color:theme.accent,bold:true,size:52})]})];
-  if(b.outcome)paragraphs.push(new Paragraph({text:b.outcome,spacing:{after:320}}));
-  if(b.author)paragraphs.push(new Paragraph({text:b.author,spacing:{after:320}}));
-  blocks.forEach((block,index)=>paragraphs.push(new Paragraph({
-    ...(block.kind==='heading'?{heading:block.level<=2?HeadingLevel.HEADING_1:HeadingLevel.HEADING_2,keepNext:true}:{}),
-    pageBreakBefore:index===0,
-    spacing:{before:block.kind==='heading'?280:0,after:160,line:300},
-    children:[new TextRun({text:block.text,bold:block.kind==='heading',color:block.kind==='heading'?theme.accent:'282E2A'})]
-  })));
-  const doc=new Document({
-    creator:b.author||'Product Studio creator',title,
-    styles:{default:{document:{run:{font:'Lato',size:23,color:'282E2A'}}}},
-    sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1000,bottom:1000,left:1020,right:1020}}},children:paragraphs}]
-  });
-  const deck=new pptxgen();deck.defineLayout({name:'A4',width:W/72,height:H/72});deck.layout='A4';
-  deck.author=b.author||'Product Studio creator';deck.subject='Editable pages for Canva import';deck.title=title;
-  pages.forEach((items,index)=>{
-    const slide=deck.addSlide();slide.background={color:'FFFFFF'};
-    if(index===0)slide.addShape(deck.ShapeType.rect,{x:0,y:0,w:W/72,h:14/72,fill:{color:theme.accent},line:{color:theme.accent}});
-    items.forEach(item=>slide.addText(item.text,{x:item.x/72,y:(item.y-2)/72,w:(W-2*M)/72,h:item.height/72+0.035,
-      fontFace:'Lato',fontSize:item.size,bold:item.bold,color:item.color,margin:0,breakLine:false,paraSpaceAfterPt:0,fit:'shrink'}));
-    slide.addText(String(index+1).padStart(2,'0'),{x:(W-M-20)/72,y:(H-42)/72,w:0.4,h:0.2,fontSize:9,color:theme.accent,margin:0});
-  });
-  const slug=title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||'digital-product';
+  const doc=new Document({creator:brief.author.trim()||'Product creator',title:design.draft?`${draftLabel}: ${title}`:title,description:design.draft?draftLabel:brief.format,
+    styles:{default:{document:{run:{font:'Lato',size:23,color:theme.ink},paragraph:{spacing:{line:310}}}},
+      paragraphStyles:[{id:'Title',name:'Title',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:60,bold:true,color:theme.ink}},{id:'Heading1',name:'Heading 1',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:36,bold:true,color:theme.accent}},{id:'Heading2',name:'Heading 2',basedOn:'Normal',next:'Normal',run:{font:'Lato',size:28,bold:true,color:theme.accent}}]},
+    sections:[{properties:{page:{size:{width:Math.round(geometry.width*20),height:Math.round(geometry.height*20)},margin:{top:1040,bottom:1040,left:1040,right:1040}}},
+      headers:{default:new Header({children:[new Paragraph({children:[run(title,{size:17,color:theme.muted})]})]})},
+      footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[...(design.draft?[run(draftLabel+'   ',{size:18,bold:true,color:theme.accent})]:[]),new TextRun({children:[PageNumber.CURRENT],size:18,color:theme.accent})]})]})},children:paragraphs}]
+  });return Packer.toBuffer(doc);
+}
+export async function exportProduct(raw,options={}){
+  const project=projectSchema.parse(raw),brief=project.brief,manuscript=brief.productDraft;
+  const blocks=parseManuscript(manuscript),draft=options.draft===true;
+  const bodyLength=blocks.filter(block=>block.kind==='body'||block.kind==='list'||block.kind==='code').reduce((length,block)=>length+block.text.length,0);
+  if(draft&&bodyLength<80)throw new Error('Add a substantive paragraph, worked example, template, or exercise of at least 80 characters before downloading a draft sample.');
+  if(!draft&&(manuscript.trim().length<600||bodyLength<450))throw new Error('Add the actual teaching, examples, templates, or exercises before exporting. An outline alone is not a finished product.');
+  const design=await designProduct(project,{...options,draft});
+  const slug=design.title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,65)||'digital-product';
+  const basename=slug+(draft?'-sample':'');
+  const markdown=draft?`> ${draftLabel}\n\n${manuscript}`:manuscript;
   const file=(name,mimeType,bytes)=>({name,mimeType,blob:Buffer.from(bytes).toString('base64')});
-  const files=[
-    file(`${slug}.pdf`,'application/pdf',await pdf.save()),
-    file(`${slug}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document',await Packer.toBuffer(doc)),
-    file(`${slug}-canva.pptx`,'application/vnd.openxmlformats-officedocument.presentationml.presentation',await deck.write({outputType:'nodebuffer'})),
-    file(`${slug}.md`,'text/markdown',Buffer.from(manuscript)),
-    file(`${slug}-project.json`,'application/json',Buffer.from(JSON.stringify({version:1,project},null,2)))
-  ];
-  if(files.reduce((n,v)=>n+v.blob.length,0)>3500000)throw new Error('This product is too large for one pilot export. Split it into smaller volumes. Your draft is unchanged.');
-  return {pages:pages.length,files};
+  const [pdf,docx,pptx]=await Promise.all([makePdf(design,brief),makeWord(design,brief),makeDeck(design,brief)]);
+  const files=[file(`${basename}.pdf`,'application/pdf',pdf),file(`${basename}.docx`,'application/vnd.openxmlformats-officedocument.wordprocessingml.document',docx),file(`${basename}-canva.pptx`,'application/vnd.openxmlformats-officedocument.presentationml.presentation',pptx),file(`${basename}.md`,'text/markdown',Buffer.from(markdown)),file(`${basename}-project.json`,'application/json',Buffer.from(JSON.stringify({version:1,...(draft?{draft:true,status:draftLabel}:{}),project,...(design.image?{coverImage:design.image.data}:{})},null,2)))];
+  if(brief.listingCopy?.trim())files.push(file(`${basename}-listing.md`,'text/markdown',Buffer.from(draft?`> ${draftLabel}\n\n${brief.listingCopy}`:brief.listingCopy)));
+  if(files.reduce((length,item)=>length+item.blob.length,0)>14000000)throw new Error('This product is too large for one local export. Split it into smaller volumes. Your draft is unchanged.');
+  return {pages:design.pages.length,files};
 }

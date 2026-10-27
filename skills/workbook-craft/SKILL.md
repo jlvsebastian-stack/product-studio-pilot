@@ -19,10 +19,12 @@ Each complete section includes:
 
 Let content determine length. Remove repeated introductions, motivational filler, hollow advice, and generic summaries. Add useful explanations when needed; do not pad to a page count. Avoid making every section the same exercise with different nouns.
 
-Draft one section at a time. Keep approved sections unchanged unless the creator requests a revision. Before expanding, identify missing experience or decisions and ask instead of filling them with invented authority. Clearly separate AI-proposed improvements from the creator's confirmed method.
+Draft one representative section first, obtain explicit sample approval, then draft one section at a time with feedback and approval before adding another. Keep approvedDraft an exact unchanged prefix unless revisionIntent explicitly requests a revision, including its whitespace. Limit a requested revision to its scope; the UI preserves an undo checkpoint. Before expanding, identify missing experience or decisions and ask instead of filling them with invented authority. Clearly separate proposed improvements from the creator's confirmed method.
 
 Apply the selected language consistently. Preserve natural phrases and depth; do not force a polished generic AI voice. Use descriptive headings and plain text that the layout engine can style. The final introduction and instructions address the reader, not the prototype, JSON, approval stages, or generation mechanics.
 
 Design for the real use: readable hierarchy, coherent typography and palette, generous exercise space, suitable print margins, restrained helpful graphics, and complete editable text. A cover and empty ruled pages do not establish a finished workbook. Check actual exported pages and content parity across formats. Export status must reflect what was generated and checked.
+
+Use ## for each main section and ### for its teaching/example/exercise parts. A representative sample contains one main section. Where useful, add matching heading/layout/purpose metadata in brief.designPlan for teaching, example, exercise, checklist, summary or steps layouts; the manuscript remains the complete authority. Use safe built-in diagrams or a creator-supplied image when supported; never claim an unproduced image or native cloud design exists.
 
 Finish with a useful next action. A complete file is ready for the creator's sale review; it is not proof of market demand, legal clearance, platform approval, or sales.
