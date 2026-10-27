@@ -63,11 +63,11 @@ test('a model-filled invented case cannot supply the creator evidence needed for
   assert.equal(result.stageReady,false);
 });
 
-test('market readiness requires multiple grounded source links and does not treat UNRUN as proof',async()=>{
+test('market readiness requires inspected offer facts and does not treat whole-check UNRUN as proof',async()=>{
   for(const marketEvidence of ['One offer https://example.com/offer','UNRUN. https://example.com/a https://other.example/b']){
     const result=await run(request({interviewStage:5,brief:{...freshProject().brief,...known}}),response({...known,marketEvidence},{stageReady:true}));assert.equal(result.stageReady,false);
   }
-  const result=await run(request({interviewStage:5}),response({...known,marketEvidence:'Observed offer contents: https://example.com/a and https://other.example/b. Prices unconfirmed.'},{stageReady:true}));assert.equal(result.stageReady,true);
+  const result=await run(request({interviewStage:5}),response({...known,marketEvidence:'Inspected course A https://example.com/a includes guided intake lessons and a completed example. Inspected course B https://other.example/b covers question design and provides a practice checklist. Prices unconfirmed.'},{stageReady:true}));assert.equal(result.stageReady,true);
 });
 
 test('early stages reject a premature manuscript and retain earlier confirmed fields',async()=>{

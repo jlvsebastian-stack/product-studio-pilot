@@ -23,7 +23,7 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     let url;try{url=new URL(req.url,`http://${req.headers.host}`);}catch{return json(res,400,{error:'Invalid address.'});}
     const maxBody=url.pathname==='/api/references'?MAX_REFERENCE_BODY:MAX_BODY;
     if(req.method==='GET'){
-      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.3'});
+      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.4'});
       if(url.pathname==='/api/models')return json(res,200,modelCatalog);
       if(url.pathname==='/api/status'){
         try{return json(res,200,await providers.status(providerId(url.searchParams.get('provider')||'chatgpt')));}catch(error){return json(res,400,{error:error.message});}

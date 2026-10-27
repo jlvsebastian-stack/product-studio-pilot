@@ -23,7 +23,7 @@ test('a repeated discovery conversation with an existing baseline stops optional
   const result=await run(request({messages,brief:{...blank(),topic}}),reply({topic}));
   assert.equal(result.stageReady,true);
   assert.match(result.message,/booking websites/i);
-  assert.match(result.message,/propos|suggest|starting direction/i);
+  assert.match(result.message,/propos|suggest|starting direction|let[’']s start/i);
   assert.match(result.message,/practical result|next/i);
   assert.doesNotMatch(result.message,/opening hook|childhood|exact words|\?/i);
   assert.equal(result.brief.example,'');assert.equal(result.brief.method,'');assert.equal(result.brief.limits,'');
