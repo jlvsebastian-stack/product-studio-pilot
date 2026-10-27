@@ -23,12 +23,12 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     let url;try{url=new URL(req.url,`http://${req.headers.host}`);}catch{return json(res,400,{error:'Invalid address.'});}
     const maxBody=url.pathname==='/api/references'?MAX_REFERENCE_BODY:MAX_BODY;
     if(req.method==='GET'){
-      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.1'});
+      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.2'});
       if(url.pathname==='/api/models')return json(res,200,modelCatalog);
       if(url.pathname==='/api/status'){
         try{return json(res,200,await providers.status(providerId(url.searchParams.get('provider')||'chatgpt')));}catch(error){return json(res,400,{error:error.message});}
       }
-      const staticFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/studio-store.js':'studio-store.js','/composer.js':'composer.js','/example-project.json':'example-project.json'};
+      const staticFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/studio-store.js':'studio-store.js','/composer.js':'composer.js','/model-access.js':'model-access.js','/example-project.json':'example-project.json'};
       if(Object.hasOwn(staticFiles,url.pathname)){
         const file=staticFiles[url.pathname];
         try{const bytes=await readFile(new URL(file,publicDirectory));res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8'}).end(bytes);}
@@ -56,6 +56,10 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     }catch{return json(res,400,{error:'This request could not be read. Your project is unchanged.'});}
     try{
       if(url.pathname==='/api/login')return json(res,200,await providers.login(providerId(body.provider||'chatgpt')));
+      if(url.pathname==='/api/check-model'){
+        try{return json(res,200,await providers.checkModel(body.provider,{model:body.model,reasoningEffort:body.reasoningEffort}));}
+        catch(error){return json(res,error.statusCode===409?409:400,{available:false,...(error.statusCode===409?{}:{retryable:true}),message:error.message||'The selected model could not be checked. Try again.'});}
+      }
       if(url.pathname==='/api/references')return json(res,200,{references:await referencePreparer(body)});
       if(url.pathname==='/api/interview')return json(res,200,await interview(body,providers));
       if(url.pathname==='/api/preview-product')return json(res,200,await previewer({stage:12,stageReady:false,summary:'Current product preview.',brief:body.brief},{coverImage:body.coverImage}));

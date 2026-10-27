@@ -111,14 +111,21 @@ export function runProcess(command,args,{input='',cwd,env,timeout=30000,maxOutpu
   });
 }
 
+function definiteModelRejection(text){
+  if(/limit|quota|usage.?cap|temporar|overload|timeout|timed?\s*out|service.?unavailable/i.test(text))return false;
+  return /\b(?:model_not_found|invalid_model|unsupported_model|model_not_supported|unsupported_reasoning_effort|invalid_reasoning_effort)\b|(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not found|does not exist|invalid)|(?:unsupported|unknown|invalid).{0,90}(?:model|effort)|(?:do(?:es)? not|don't|doesn't) have access to.{0,60}model|(?:account|subscription).{0,60}not (?:allowed|permitted).{0,60}model|model.{0,100}(?:unavailable|not available).{0,60}(?:account|subscription)/i.test(text);
+}
 function failureMessage(id,result){
   const text=result.stdout+'\n'+result.stderr;
   if(/(?:image|vision|multimodal).{0,100}(?:not supported|unsupported|unavailable|not available)|(?:not supported|unsupported).{0,100}(?:image|vision|multimodal)|(?:unknown|unexpected|unrecognized).{0,50}(?:--image|--input-format)/i.test(text))return `${label(id)}'s selected model or local helper cannot accept these image inputs. Choose a compatible model or update the local helper, then retry. Your draft is saved.`;
   if(/failed to initialize (?:in-process )?app-server client/i.test(text)&&/access is denied|os error 5/i.test(text))return 'Windows denied the local AI helper access to its normal runtime. Close Product Studio and relaunch it with normal local permissions, then retry. Your draft is saved.';
-  if(/(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not available|unavailable|not found|does not exist|not have access|invalid|cannot|can.t use)|(?:unsupported|unknown|invalid).{0,40}(?:model|effort)|access.{0,40}(?:model)/i.test(text))return `The selected ${label(id)} model or quality setting is unavailable for this account or local helper. Choose another model or quality setting and retry. Your draft is saved.`;
   if(/limit|quota|rate.?limit|usage.?cap/i.test(text))return `Your ${label(id)} usage limit was reached. Your conversation is saved; wait for the limit to reset and retry.`;
+  if(definiteModelRejection(text))return `The selected ${label(id)} model or quality setting is unavailable for this account or local helper. Choose another model or quality setting and retry. Your draft is saved.`;
   if(/401|unauthorized|authentication|not logged|login|sign.?in/i.test(text))return `Sign in to ${label(id)} again, then retry. Your draft is saved.`;
   return `${label(id)} could not finish this request. Check the account connection and retry; your draft is saved.`;
+}
+function failureError(id,result){
+  return Object.assign(new Error(failureMessage(id,result)),{modelUnavailable:definiteModelRejection(result.stdout+'\n'+result.stderr)});
 }
 
 export function inferenceArguments(id,{schemaPath,outputPath,search=false,model,reasoningEffort,imagePaths=[],multimodal=false}={}){
@@ -175,8 +182,10 @@ function validImageStructure(bytes,mimeType){
   return false;
 }
 
-export function createProviderManager({env=process.env,resolveCli=resolveVendorCli,execute=runProcess,spawnFn=spawn}={}){
-  const childEnv=subscriptionEnvironment(env),logins=new Map(),terminationHolds=new Set();let busy=false,blockedReason='';
+export function createProviderManager({env=process.env,resolveCli=resolveVendorCli,execute=runProcess,spawnFn=spawn,now=Date.now}={}){
+  const childEnv=subscriptionEnvironment(env),logins=new Map(),terminationHolds=new Set(),modelChecks=new Map();let busy=false,blockedReason='',checkGeneration=0;
+  const invalidateChecks=()=>{modelChecks.clear();checkGeneration++;};
+  const busyError=()=>Object.assign(new Error(blockedReason||'Your AI is already working. Wait for the current reply to finish, then check again.'),{statusCode:409});
   function holdUnconfirmed(error){
     if(!error.unconfirmedTermination||!error.processExit)return;
     terminationHolds.add(error.processExit);blockedReason=error.message;
@@ -198,7 +207,7 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
     }catch(error){holdUnconfirmed(error);return {...base,busy:busy||terminationHolds.size>0,message:blockedReason||`Could not check ${label(id)}. Run the launcher again or sign in and retry.`};}
   }
   async function login(id='chatgpt'){
-    providerId(id);const cli=command(id);
+    providerId(id);invalidateChecks();const cli=command(id);
     if(!cli)throw new Error(`${label(id)}'s local helper is not installed. Run the launcher again.`);
     if(logins.has(id))return {provider:id,started:true,message:`${label(id)} sign-in is already open. Complete it in your browser.`};
     const child=spawnFn(cli.file,[...cli.prefix,...(id==='chatgpt'?['login']:['auth','login'])],{env:childEnv,windowsHide:true,shell:false,stdio:['ignore','ignore','ignore']});
@@ -211,7 +220,7 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
   async function infer(id,prompt,schema,{search=false,model,reasoningEffort,images=[]}={}){
     providerId(id);const selected=modelOptions(id,{model,reasoningEffort});
     const attached=validatedImages(images);
-    if(busy||terminationHolds.size)throw new Error(blockedReason||'Your AI is already working. Wait for the current reply to finish.');busy=true;
+    if(busy||terminationHolds.size)throw busyError();busy=true;
     let directory,pendingExit;
     try{
       if(!(await status(id)).ready)throw new Error(`Connect your ${label(id)} subscription before sending a message.`);
@@ -228,25 +237,50 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
       const input=id==='claude'&&attached.length?JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:prompt},...attached.map(image=>({type:'image',source:{type:'base64',media_type:image.mimeType,data:image.data}}))]},parent_tool_use_id:null})+'\n':prompt;
       const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,...selected,imagePaths,multimodal:attached.length>0});
       const result=await execute(command(id),args,{input,cwd:directory,env:childEnv,timeout:search?180000:420000});
-      if(result.code!==0)throw new Error(failureMessage(id,result));
+      if(result.code!==0)throw failureError(id,result);
       if(id==='chatgpt'){
         try{return JSON.parse(await readFile(outputPath,'utf8'));}catch{throw new Error('ChatGPT returned an unreadable reply. Your draft is unchanged; retry your question.');}
       }
       let value;
       try{value=JSON.parse(result.stdout);}catch{throw new Error('Claude returned an unreadable reply. Your draft is unchanged; retry your question.');}
-      if(value.is_error)throw new Error(failureMessage(id,result));
+      if(value.is_error)throw failureError(id,result);
       if(value.structured_output&&typeof value.structured_output==='object')return value.structured_output;
       if(typeof value.result==='string'){
         try{return JSON.parse(value.result);}catch{}
       }
       throw new Error('Claude did not return a complete structured reply. Your draft is unchanged; retry your question.');
     }catch(error){
-      holdUnconfirmed(error);if(error.unconfirmedTermination)pendingExit=error.processExit;throw error;
+      invalidateChecks();holdUnconfirmed(error);if(error.unconfirmedTermination)pendingExit=error.processExit;throw error;
     }finally{
       busy=false;
       const cleanup=()=>directory?rm(directory,{recursive:true,force:true}).catch(()=>{}):Promise.resolve();
       if(pendingExit)pendingExit.then(cleanup);else await cleanup();
     }
   }
-  return {status,login,infer};
+  async function checkModel(id,{model,reasoningEffort}={}){
+    let selected;
+    try{
+      if(typeof id!=='string'||typeof model!=='string'||!model||typeof reasoningEffort!=='string')throw new Error('Choose the provider, model and quality to check.');
+      providerId(id);selected=modelOptions(id,{model,reasoningEffort});
+    }catch(error){return {available:false,message:error.message};}
+    if(busy||terminationHolds.size)throw busyError();
+    if(logins.has(id))throw Object.assign(new Error(`Complete ${label(id)} sign-in before checking the selected model.`),{statusCode:409});
+    const key=JSON.stringify([id,selected.model,selected.reasoningEffort]);
+    for(const [entry,expires]of modelChecks)if(expires<=now())modelChecks.delete(entry);
+    const message=`The selected ${label(id)} model and quality responded successfully.`;
+    if(modelChecks.has(key))return {available:true,message};
+    const generation=checkGeneration;
+    try{
+      const value=await infer(id,'Connection check only. Reply with exactly {"available":true}. Do not research, use tools, or create any content.',{type:'object',properties:{available:{type:'boolean'}},required:['available'],additionalProperties:false},selected);
+      if(generation!==checkGeneration)return {available:false,retryable:true,message:'Your connection changed during this check. Check the selected model again.'};
+      if(!value||typeof value!=='object'||Array.isArray(value)||value.available!==true||Object.keys(value).length!==1){
+        invalidateChecks();return {available:false,retryable:true,message:`${label(id)} did not return the expected model check. Check this selection again.`};
+      }
+      // Only successful responses are cached, for five minutes in this process.
+      while(modelChecks.size>=32)modelChecks.delete(modelChecks.keys().next().value);
+      modelChecks.set(key,now()+5*60*1000);
+      return {available:true,message};
+    }catch(error){if(error.statusCode===409||error.unconfirmedTermination){error.statusCode=409;throw error;}return {available:false,...(error.modelUnavailable?{}:{retryable:true}),message:error.message||`The selected ${label(id)} model could not be checked. Try again.`};}
+  }
+  return {status,login,infer,checkModel};
 }
