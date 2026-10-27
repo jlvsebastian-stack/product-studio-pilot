@@ -1,3 +1,4 @@
+import {cleanReferences,projectReferences} from './composer.js';
 const PROJECTS='product-studio-projects-v3', PROFILE='product-studio-preferences-v1';
 const categories=['voice','design','workflow'];
 export const PREFERENCE_LIMIT=80;
@@ -15,7 +16,7 @@ export const blankBrief=()=>Object.fromEntries(briefKeys.map(k=>[k,k==='theme'?'
 const id=()=>globalThis.crypto?.randomUUID?.()||`project-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const normalized=t=>String(t).trim().toLowerCase().replace(/\s+/g,' ');
 const emptyProfile=()=>({preferences:[],candidates:[],forgotten:[],paused:false});
-export const freshProject=()=>({id:id(),updatedAt:Date.now(),brief:blankBrief(),interviewStage:1,messages:[{role:'assistant',content:FIRST}],notes:[],stageReady:false,summary:'',reviewed:false,files:null,demo:false,pendingAnswer:'',approvedDraft:'',previousApprovedDraft:'',sampleApproved:false,coverImage:'',suggestions:[],companions:[],changeNote:''});
+export const freshProject=()=>({id:id(),updatedAt:Date.now(),brief:blankBrief(),interviewStage:1,messages:[{role:'assistant',content:FIRST}],notes:[],stageReady:false,summary:'',reviewed:false,files:null,demo:false,pendingAnswer:'',references:[],pendingReferences:[],retryRequest:null,approvedDraft:'',previousApprovedDraft:'',sampleApproved:false,coverImage:'',suggestions:[],companions:[],changeNote:''});
 
 function readProject(raw,{newId=false}={}){
   const source=raw?.project?{...raw.project,interviewStage:raw.project.stage}:raw;
@@ -29,6 +30,9 @@ function readProject(raw,{newId=false}={}){
   if(p.coverImage.length>1400000)throw Error('The project image exceeds the 1 MB limit.');
   for(const key of ['stageReady','demo','sampleApproved'])if(source[key]!==undefined){if(typeof source[key]!=='boolean')throw Error('This project has invalid approval fields.');p[key]=source[key];}
   if(source.messages!==undefined){if(!Array.isArray(source.messages)||source.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.content!=='string'))throw Error('This conversation is invalid.');p.messages=source.messages.map(({role,content})=>({role,content}));}
+  p.references=cleanReferences(source.references);p.pendingReferences=cleanReferences(source.pendingReferences);cleanReferences(projectReferences(p));
+  if(source.retryRequest){const request=source.retryRequest;if(typeof request.text!=='string'||!Number.isInteger(request.messageIndex)||p.messages[request.messageIndex]?.role!=='user')throw Error('This project has an invalid retry checkpoint.');p.retryRequest={text:request.text,messageIndex:request.messageIndex,fromComposer:request.fromComposer===true,revisionIntent:request.revisionIntent===true,completion:request.completion===true,references:cleanReferences(request.references)};}
+  else if(p.messages.at(-1)?.role==='assistant'&&p.messages.at(-1).content.startsWith('I couldn’t finish that reply.')){const messageIndex=p.messages.findLastIndex(m=>m.role==='user');if(messageIndex>=0)p.retryRequest={text:p.messages[messageIndex].content,messageIndex,fromComposer:true,revisionIntent:false,completion:false,references:p.references};}
   if(source.notes!==undefined){if(!Array.isArray(source.notes)||source.notes.some(n=>!n||!Number.isInteger(n.stage)||typeof n.title!=='string'||typeof n.summary!=='string'))throw Error('This project has invalid stage notes.');p.notes=source.notes.map(({stage,title,summary})=>({stage,title,summary}));}
   for(const [key,fields] of [['suggestions',['title','why','basis']],['companions',['title','format','why']]])if(source[key]!==undefined){if(!Array.isArray(source[key])||source[key].some(item=>!item||fields.some(field=>typeof item[field]!=='string')))throw Error('This project has invalid product suggestions.');p[key]=source[key].slice(0,6).map(item=>Object.fromEntries(fields.map(field=>[field,item[field]])));}
   if(!p.approvedDraft)p.sampleApproved=false;
@@ -75,6 +79,8 @@ export function newProject(studio){const p=freshProject();studio.projects.unshif
 export function openProject(studio,projectId){const p=studio.projects.find(p=>p.id===projectId);if(!p)throw Error('This project could not be found.');studio.activeId=p.id;return p;}
 export function checkpoint(p){
   const clean={};for(const key of ['id','updatedAt','brief','interviewStage','messages','notes','stageReady','summary','demo','pendingAnswer','approvedDraft','previousApprovedDraft','sampleApproved','coverImage','changeNote','suggestions','companions'])clean[key]=p[key];
+  clean.references=cleanReferences(p.references);clean.pendingReferences=cleanReferences(p.pendingReferences);cleanReferences(projectReferences(clean));
+  clean.retryRequest=p.retryRequest?{...p.retryRequest,references:cleanReferences(p.retryRequest.references)}:null;
   return clean;
 }
 export function importProject(studio,raw){const p=readProject(raw,{newId:true});studio.projects.unshift(p);studio.activeId=p.id;return p;}

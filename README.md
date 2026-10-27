@@ -30,6 +30,12 @@ The twelve stages discover your expertise; choose a useful problem, audience and
 
 The interview stays inside the app. The conversation is on the left, with project progress, the brief, outline and current draft on the right. **Save project** retains the full interview; **Open project** resumes it. Exported-page previews are optional; the workspace shows what is being built and what needs the creator's next decision.
 
+Press **Enter** to send and **Shift+Enter** for a new line. Use the attachment control, paste or drag files into the composer, or include a public link. The app reads supported documents locally and supplies their extracted content or image input to the AI when you send. References stay with the project and are kept separate from personal preferences and sale files. Source facts are not automatically treated as the creator's own experience. Unavailable, scanned, partial or unsupported sources are labeled honestly.
+
+The current prototype accepts five project references, files up to 3 MiB each / 6 MiB per upload, and up to two PNG/JPEG images of 512 KiB each. It extracts at most 16,000 characters per source / 60,000 per project and labels incomplete excerpts. Supported document types are PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, TSV and JSON; public links supply readable page text. These are conservative limits in this app, not ChatGPT website or subscription limits. The local interview uses the official provider helper and does not inherit the website's upload system. Original document binaries are not retained; the project backup retains extracted text, source details and attached image inputs.
+
+If a reply fails, choose an available model if necessary and use **Retry last message** to resend the retained original message and references. The app never silently changes provider or model.
+
 **New project** retains your previous project. Local autosave keeps work in this browser, while **Save project** downloads a portable backup. Keep a backup before clearing browser data or changing computers.
 
 **My preferences** remembers explicit voice, design and workflow instructions. Inferred preferences are offered for confirmation. You can edit, forget or pause learning. Preferences apply across your projects and selected providers inside this app; project-specific facts stay with their project. They are not automatically copied into the provider's account memory or included in product downloads.

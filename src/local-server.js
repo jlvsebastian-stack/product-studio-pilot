@@ -7,11 +7,12 @@ import { createProviderManager, providerId } from './providers.js';
 import { interview } from './interview.js';
 import { exportProduct, previewProduct } from './exports.js';
 import { modelCatalog } from './models.js';
+import { prepareReferences } from './references.js';
 import JSZip from 'jszip';
 
-const MAX_BODY=2000000;
+const MAX_BODY=4000000,MAX_REFERENCE_BODY=9*1024*1024;
 const defaultPublic=new URL('../public/',import.meta.url);
-export function createLocalHandler({providers=createProviderManager(),publicDirectory=defaultPublic,exporter=exportProduct,previewer=previewProduct,now=Date.now}={}){
+export function createLocalHandler({providers=createProviderManager(),publicDirectory=defaultPublic,exporter=exportProduct,previewer=previewProduct,referencePreparer=prepareReferences,now=Date.now}={}){
   const packages=new Map();
   const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'}).end(JSON.stringify(value));};
   return async(req,res)=>{
@@ -20,13 +21,14 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     const port=req.socket.localPort,hosts=[`127.0.0.1:${port}`,`localhost:${port}`];
     if(!hosts.includes((req.headers.host||'').toLowerCase()))return json(res,403,{error:'This app accepts local connections only.'});
     let url;try{url=new URL(req.url,`http://${req.headers.host}`);}catch{return json(res,400,{error:'Invalid address.'});}
+    const maxBody=url.pathname==='/api/references'?MAX_REFERENCE_BODY:MAX_BODY;
     if(req.method==='GET'){
-      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.0'});
+      if(url.pathname==='/api/health')return json(res,200,{app:'product-studio-local',version:'0.3.1'});
       if(url.pathname==='/api/models')return json(res,200,modelCatalog);
       if(url.pathname==='/api/status'){
         try{return json(res,200,await providers.status(providerId(url.searchParams.get('provider')||'chatgpt')));}catch(error){return json(res,400,{error:error.message});}
       }
-      const staticFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/studio-store.js':'studio-store.js','/example-project.json':'example-project.json'};
+      const staticFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/studio-store.js':'studio-store.js','/composer.js':'composer.js','/example-project.json':'example-project.json'};
       if(Object.hasOwn(staticFiles,url.pathname)){
         const file=staticFiles[url.pathname];
         try{const bytes=await readFile(new URL(file,publicDirectory));res.writeHead(200,{'Content-Type':file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.json')?'application/json; charset=utf-8':'text/html; charset=utf-8'}).end(bytes);}
@@ -44,16 +46,17 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     if(!hosts.map(host=>`http://${host}`).includes(req.headers.origin))return json(res,403,{error:'Open Product Studio from its own local address.'});
     if(!String(req.headers['content-type']||'').startsWith('application/json'))return json(res,415,{error:'Use a JSON request.'});
-    if(Number(req.headers['content-length']||0)>MAX_BODY)return json(res,413,{error:'This project is too large. Save a copy and split it into smaller parts.'});
+    if(Number(req.headers['content-length']||0)>maxBody)return json(res,413,{error:'This request is too large. Use fewer or smaller reference files, or save a project backup.'});
     let body;
     try{
       let chunks=[],size=0;
-      for await(const chunk of req){size+=chunk.length;if(size>MAX_BODY)return json(res,413,{error:'This project is too large. Save a copy and split it into smaller parts.'});chunks.push(chunk);}
+      for await(const chunk of req){size+=chunk.length;if(size>maxBody)return json(res,413,{error:'This request is too large. Use fewer or smaller reference files, or save a project backup.'});chunks.push(chunk);}
       body=JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if(!body||typeof body!=='object'||Array.isArray(body))return json(res,400,{error:'This request needs a project object.'});
     }catch{return json(res,400,{error:'This request could not be read. Your project is unchanged.'});}
     try{
       if(url.pathname==='/api/login')return json(res,200,await providers.login(providerId(body.provider||'chatgpt')));
+      if(url.pathname==='/api/references')return json(res,200,{references:await referencePreparer(body)});
       if(url.pathname==='/api/interview')return json(res,200,await interview(body,providers));
       if(url.pathname==='/api/preview-product')return json(res,200,await previewer({stage:12,stageReady:false,summary:'Current product preview.',brief:body.brief},{coverImage:body.coverImage}));
       if(url.pathname==='/api/export-product'){
@@ -75,7 +78,7 @@ export function createLocalHandler({providers=createProviderManager(),publicDire
       return json(res,404,{error:'Not found.'});
     }catch(error){
       const message=error?.name==='ZodError'?'The project or AI reply has invalid fields. Your saved conversation is unchanged; check it and retry.':error.message||'The request could not finish. Your project is unchanged.';
-      return json(res,400,{error:message});
+      return json(res,error.statusCode===413?413:400,{error:message});
     }
   };
 }

@@ -1,5 +1,19 @@
 # Local pilot evidence — 27 October 2026
 
+## Version 0.3.1: chat references and Enter to send
+
+PASS: final combined suite **126/126** at runtime source **1b820423de35b89d614a1e1ba2e15f92867b13d2**. Includes Enter/Shift+Enter, composition and repeat-key guards, attachment-only messages, pending-source isolation, project reload/backup, exact-message retry, local HTTP upload boundaries, bounded URL reads, parser cancellation, native-image transport, reference provenance and sparse spreadsheet coordinates. Existing interview, learning, approval, export and provider-lifecycle checks remain passing.
+
+PASS: independent correction review accepted that exact runtime source after fixing two reproduced defects: historical generated attachment labels could no longer count as personal creator evidence, and sparse spreadsheet values retained their actual cell coordinates. The reviewer reran only the five directly relevant regressions, all passing. The live PDF/image/link contracts are unchanged by those corrections.
+
+PASS: actual Windows UI through the official signed-in Codex helper, **GPT-6 Astra · Medium**. Attached the real eight-page example PDF, a real app screenshot and a public example.com link. The model identified the exact PDF filename and three handoff steps, read the model/quality shown in the screenshot, and correctly described the supplied public-page text. It kept the external sources separate from the creator's experience and held stage 1. This proves that the supplied PDF text, image bytes and public-page text reached the model, not that every page layout or embedded image was reviewed.
+
+PASS: normal browser controls proved Shift+Enter creates a newline, Enter sends one prepared message, a draft typed while waiting is retained, and all three references and the unsent draft survive reload and Save project. The portable backup excludes the personal profile. Reference text and actual image inputs remain project data rather than sale-file content. The UI clearly distinguishes parsing from an AI review, partial excerpts and unavailable sources.
+
+Prototype limits are five project sources, 3 MiB per ordinary file / 6 MiB per upload, two PNG/JPEG images up to 512 KiB each, and 16,000 extracted characters per source / 60,000 total. These are app limits, not provider website or subscription limits. PDF/Office extraction is text-only; scanned documents and unsupported files are reported honestly. Public links do not use account cookies or execute scripts.
+
+UNRUN: live eligible Claude multimodal inference, actual macOS execution, another person's independent installation/subscription, and OCR for scanned documents. Existing native Canva/Workspace and independent complete-creator-trial limitations below still apply.
+
 ## Version 0.3: creator learning and visible project progress
 
 PASS: final combined suite **81/81**. Covers retained projects and legacy migration, unsent answers, browser-storage failure recovery, explicit versus inferred preferences, edit/forget/pause, restored preference capacity, actual model/quality argv, stage and section gates, exact approved-text preservation/revision/undo, grounded completion offers, stale sample/preview responses, local HTTP boundaries and private-checkpoint exclusion from the sale ZIP. Existing subscription/process shutdown tests remain passing.

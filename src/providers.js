@@ -113,6 +113,7 @@ export function runProcess(command,args,{input='',cwd,env,timeout=30000,maxOutpu
 
 function failureMessage(id,result){
   const text=result.stdout+'\n'+result.stderr;
+  if(/(?:image|vision|multimodal).{0,100}(?:not supported|unsupported|unavailable|not available)|(?:not supported|unsupported).{0,100}(?:image|vision|multimodal)|(?:unknown|unexpected|unrecognized).{0,50}(?:--image|--input-format)/i.test(text))return `${label(id)}'s selected model or local helper cannot accept these image inputs. Choose a compatible model or update the local helper, then retry. Your draft is saved.`;
   if(/failed to initialize (?:in-process )?app-server client/i.test(text)&&/access is denied|os error 5/i.test(text))return 'Windows denied the local AI helper access to its normal runtime. Close Product Studio and relaunch it with normal local permissions, then retry. Your draft is saved.';
   if(/(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not available|unavailable|not found|does not exist|not have access|invalid|cannot|can.t use)|(?:unsupported|unknown|invalid).{0,40}(?:model|effort)|access.{0,40}(?:model)/i.test(text))return `The selected ${label(id)} model or quality setting is unavailable for this account or local helper. Choose another model or quality setting and retry. Your draft is saved.`;
   if(/limit|quota|rate.?limit|usage.?cap/i.test(text))return `Your ${label(id)} usage limit was reached. Your conversation is saved; wait for the limit to reset and retry.`;
@@ -120,10 +121,58 @@ function failureMessage(id,result){
   return `${label(id)} could not finish this request. Check the account connection and retry; your draft is saved.`;
 }
 
-export function inferenceArguments(id,{schemaPath,outputPath,search=false,model,reasoningEffort}={}){
+export function inferenceArguments(id,{schemaPath,outputPath,search=false,model,reasoningEffort,imagePaths=[],multimodal=false}={}){
   const selected=modelOptions(id,{model,reasoningEffort});
-  if(id==='chatgpt')return ['--disable','shell_tool','--disable','apps','--disable','multi_agent',...(search?['--search']:[]),'exec','--ignore-user-config','--model',selected.model,'-c',`model_reasoning_effort="${selected.reasoningEffort}"`,'--ephemeral','--skip-git-repo-check','--sandbox','read-only','--output-schema',schemaPath,'--output-last-message',outputPath,'-'];
-  return ['-p','--model',selected.model,'--effort',selected.reasoningEffort,'--output-format','json','--json-schema',schemaPath,'--tools',search?'WebSearch,WebFetch':'','--allowedTools',search?'WebSearch,WebFetch':'','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--setting-sources','','--no-chrome','--restricted','--safe-mode','--no-session-persistence','--disable-slash-commands','--permission-mode','dontAsk','--max-turns','12'];
+  if(id==='chatgpt')return ['--disable','shell_tool','--disable','apps','--disable','multi_agent',...(search?['--search']:[]),'exec','--ignore-user-config','--model',selected.model,'-c',`model_reasoning_effort="${selected.reasoningEffort}"`,'--ephemeral','--skip-git-repo-check','--sandbox','read-only','--output-schema',schemaPath,'--output-last-message',outputPath,...imagePaths.flatMap(path=>['--image',path]),'-'];
+  return ['-p','--model',selected.model,'--effort',selected.reasoningEffort,'--output-format','json',...(multimodal?['--input-format','stream-json']:[]),'--json-schema',schemaPath,'--tools',search?'WebSearch,WebFetch':'','--allowedTools',search?'WebSearch,WebFetch':'','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--setting-sources','','--no-chrome','--restricted','--safe-mode','--no-session-persistence','--disable-slash-commands','--permission-mode','dontAsk','--max-turns','12'];
+}
+
+function validatedImages(images){
+  if(!Array.isArray(images)||images.length>2)throw new Error('Attach at most two PNG or JPEG images.');
+  return images.map(image=>{
+    if(!image||!['image/png','image/jpeg'].includes(image.mimeType)||typeof image.name!=='string'||image.name.length>240||typeof image.data!=='string'||!image.data.length||image.data.length>Math.ceil(512*1024/3)*4||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(image.data))throw new Error('Use a valid PNG or JPEG image of at most 512 KiB.');
+    const bytes=Buffer.from(image.data,'base64');
+    if(!bytes.length||bytes.length>512*1024||bytes.toString('base64')!==image.data)throw new Error('Use a valid PNG or JPEG image of at most 512 KiB.');
+    if(!validImageStructure(bytes,image.mimeType))throw new Error('The image contents do not match a valid PNG or JPEG within 4096 pixels per side.');
+    return {...image,bytes};
+  });
+}
+
+function validImageStructure(bytes,mimeType){
+  const dimensions=(width,height)=>width>0&&height>0&&width<=4096&&height<=4096&&width*height<=16000000;
+  if(mimeType==='image/png'){
+    if(bytes.length<45||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))return false;
+    let offset=8,first=true,data=false;
+    while(offset+12<=bytes.length){
+      const length=bytes.readUInt32BE(offset),type=bytes.toString('ascii',offset+4,offset+8);
+      if(length>bytes.length-offset-12)return false;
+      if(first){if(type!=='IHDR'||length!==13||!dimensions(bytes.readUInt32BE(offset+8),bytes.readUInt32BE(offset+12)))return false;first=false;}
+      else if(type==='IHDR')return false;
+      if(type==='IDAT')data=true;
+      offset+=length+12;
+      if(type==='IEND')return length===0&&data&&offset===bytes.length;
+    }
+    return false;
+  }
+  if(bytes.length<12||bytes[0]!==255||bytes[1]!==216||bytes[bytes.length-2]!==255||bytes.at(-1)!==217)return false;
+  let offset=2,frame=false;
+  while(offset<bytes.length-2){
+    if(bytes[offset++]!==255)return false;
+    while(bytes[offset]===255)offset++;
+    const marker=bytes[offset++];
+    if(marker===0||marker===216||marker===217)return false;
+    if(marker===1||marker>=208&&marker<=215)continue;
+    if(offset+2>bytes.length)return false;
+    const length=bytes.readUInt16BE(offset);
+    if(length<2||offset+length>bytes.length-2)return false;
+    if([192,193,194,195,197,198,199,201,202,203,205,206,207].includes(marker)){
+      if(length<8||!dimensions(bytes.readUInt16BE(offset+5),bytes.readUInt16BE(offset+3)))return false;
+      frame=true;
+    }
+    if(marker===218)return frame&&length>=6&&offset+length<bytes.length-2;
+    offset+=length;
+  }
+  return false;
 }
 
 export function createProviderManager({env=process.env,resolveCli=resolveVendorCli,execute=runProcess,spawnFn=spawn}={}){
@@ -159,8 +208,9 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
     child.on('error',done);child.on('close',done);
     return {provider:id,started:true,message:`Complete ${label(id)}'s own sign-in in your browser, then choose Check connection.`};
   }
-  async function infer(id,prompt,schema,{search=false,model,reasoningEffort}={}){
+  async function infer(id,prompt,schema,{search=false,model,reasoningEffort,images=[]}={}){
     providerId(id);const selected=modelOptions(id,{model,reasoningEffort});
+    const attached=validatedImages(images);
     if(busy||terminationHolds.size)throw new Error(blockedReason||'Your AI is already working. Wait for the current reply to finish.');busy=true;
     let directory,pendingExit;
     try{
@@ -168,8 +218,16 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
       directory=await mkdtemp(join(tmpdir(),'product-studio-'));
       const schemaPath=join(directory,'schema.json'),outputPath=join(directory,'response.json');
       await writeFile(schemaPath,JSON.stringify(schema),{mode:0o600});
-      const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,...selected});
-      const result=await execute(command(id),args,{input:prompt,cwd:directory,env:childEnv,timeout:search?180000:420000});
+      const imagePaths=[];
+      if(id==='chatgpt')for(const [index,image] of attached.entries()){
+        const path=join(directory,`reference-${index+1}.${image.mimeType==='image/png'?'png':'jpg'}`);
+        await writeFile(path,image.bytes,{mode:0o600});imagePaths.push(path);
+      }
+      // Native image inputs do not grant the agent a filesystem-reading tool.
+      // Claude's documented streaming user message carries base64 image blocks.
+      const input=id==='claude'&&attached.length?JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:prompt},...attached.map(image=>({type:'image',source:{type:'base64',media_type:image.mimeType,data:image.data}}))]},parent_tool_use_id:null})+'\n':prompt;
+      const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,...selected,imagePaths,multimodal:attached.length>0});
+      const result=await execute(command(id),args,{input,cwd:directory,env:childEnv,timeout:search?180000:420000});
       if(result.code!==0)throw new Error(failureMessage(id,result));
       if(id==='chatgpt'){
         try{return JSON.parse(await readFile(outputPath,'utf8'));}catch{throw new Error('ChatGPT returned an unreadable reply. Your draft is unchanged; retry your question.');}

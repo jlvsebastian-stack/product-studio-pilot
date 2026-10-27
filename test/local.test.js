@@ -146,7 +146,7 @@ test('real local HTTP server protects host/origin, serves only public files, and
     assert.equal(exported.pages,2);
     const download=await fetch(app.url+exported.files.pdf.url);assert.equal(await download.text(),'actual-test-file-bytes');assert.match(download.headers.get('content-disposition'),/attachment/);
     const archive=Buffer.from(await(await fetch(app.url+exported.files.zip.url)).arrayBuffer());assert.equal(archive.subarray(0,2).toString(),'PK');
-    assert.equal((await post('/api/interview',{huge:'x'.repeat(2000000)})).status,413);
+    assert.equal((await post('/api/interview',{huge:'x'.repeat(4000000)})).status,413);
   }finally{await app.close();await rm(directory,{recursive:true,force:true});}
 });
 test('a second launch reuses only Product Studio; another app on the port gets a free next port',async()=>{
