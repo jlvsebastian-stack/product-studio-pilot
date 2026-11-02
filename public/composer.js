@@ -42,10 +42,10 @@ export function cleanReferences(value=[]){
   return result;
 }
 export const projectReferences=project=>[...(project.references||[]),...(project.pendingReferences||[])];
-export function recordRequest(project,text,{fromComposer=false,revisionIntent=false,completion=false}={}){
+export function recordRequest(project,text,{fromComposer=false,revisionIntent=false,completion=false,fullDraft=false}={}){
   const references=fromComposer?projectReferences(project):project.references||[];
   project.messages.push({role:'user',content:referenceMessage(text,fromComposer?project.pendingReferences:[])});
-  const request={text,messageIndex:project.messages.length-1,fromComposer,revisionIntent,completion,references};
+  const request={text,messageIndex:project.messages.length-1,fromComposer,revisionIntent,completion,references,...fullDraft?{fullDraft:true}:{}};
   if(fromComposer){if(project.pendingAnswer.trim()===text.trim())project.pendingAnswer='';project.references=references;project.pendingReferences=[];}
   project.retryRequest=null;project.stageReady=false;return request;
 }

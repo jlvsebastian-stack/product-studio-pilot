@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {freshProject} from '../public/studio-store.js';
+import {isPresentation} from '../public/design-concepts.js';
+import * as google from '../public/google-delivery.js';
+const version=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version;
 
 const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
 const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 function renderer(){
   const state=freshProject();state.interviewStage=12;state.brief.productDraft='Approved source';state.approvedDraft=state.brief.productDraft;state.reviewed=true;
-  const scope={URL,esc:escape,state,working:false,runtimeReady:true,previewKey:()=> 'current',renderExportPreview:()=>'',rich:escape};
+  const scope={...google,googleChecked:new Set(),URL,isPresentation,esc:escape,state,working:false,runtimeReady:true,previewKey:()=> 'current',renderExportPreview:()=>'',rich:escape};
   vm.createContext(scope);
   vm.runInContext(source.slice(source.indexOf('function nativeReviewInstructions('),source.indexOf('\nfunction renderDraft(')),scope);
   vm.runInContext(source.slice(source.indexOf('function links('),source.indexOf('\nfunction render(){')),scope);
@@ -35,7 +38,7 @@ test('only HTTPS native editor routes on the real service hosts become editor ac
 });
 test('actual sample and download rendering retain review gates and local fallback without an Office handoff',()=>{
   const ui=renderer();ui.state.files={...local,canva:{name:'old.pptx',url:'/downloads/package/old.pptx'},editable:{name:'old.docx',url:'/downloads/package/old.docx'}};
-  const html=ui.renderDownloads();assert.doesNotMatch(html,/Microsoft|PowerPoint|Word|\.pptx|\.docx|import it into Canva|upload it to Google Drive/);assert.match(html,/PDF/);assert.match(html,/Google Docs/);assert.match(html,/presenter notes/);assert.match(html,/cloud file has not been confirmed/i);
+  const html=ui.renderDownloads();assert.doesNotMatch(html,/Microsoft|PowerPoint|Word|\.pptx|\.docx|import it into Canva|upload it to Google Drive/);assert.match(html,/PDF/);assert.match(html,/Google Docs/);assert.match(html,/native Google product or its formulas/);assert.match(html,/verified editor link/i);
   ui.state.interviewStage=9;ui.state.sampleFingerprint='current';ui.state.sampleFiles=local;assert.match(ui.renderSampleReview(),/PDF/);
   ui.state.reviewed=false;assert.match(ui.renderDownloads(),/id="export-product"[^>]*disabled/);
 });
@@ -54,7 +57,16 @@ test('actual bootstrap rejects 0.3.7 and disables legacy package actions while p
   assert.match(ui.rendered,/id="export-product"[^>]*disabled/);assert.match(ui.sampleRendered,/id="export-sample"[^>]*disabled/);assert.equal(anchors(ui.rendered).length,0);assert.equal(anchors(ui.sampleRendered).length,0);assert.equal(result.current,result.preserved);
   ui.render();assert.equal(anchors(ui.rendered).length,0,'Later re-render must not restore the legacy ZIP action');assert.equal(ui.state.files.zip.url,'/downloads/package/guide.zip');assert.equal(ui.state.sampleFiles.canva.url,'/downloads/old/source.pptx');
 });
-test('actual bootstrap accepts 0.3.8 and retains the valid PDF/text/ZIP delivery contract',async()=>{
-  const result=await bootstrapRuntime('0.3.8'),{ui}=result;
+test('actual bootstrap accepts the current release and retains the valid PDF/text/ZIP delivery contract',async()=>{
+  const result=await bootstrapRuntime(version),{ui}=result;
   assert.equal(ui.runtimeReady,true);assert.deepEqual(result.requests,['/api/health','/api/models']);assert.equal(ui.checks,1);assert.equal(anchors(ui.rendered).length,3);assert.match(ui.rendered,/Complete package/);assert.equal(result.current,result.preserved);
+});
+
+test('the redesigned preview cannot silently reuse an older presentation renderer',async()=>{
+  const result=await bootstrapRuntime('0.3.12');
+  assert.equal(result.ui.runtimeReady,false);
+  assert.equal(result.ui.checks,0);
+  assert.match(result.notices[0],/Restart[\s\S]*retained/i);
+  assert.equal(result.current,result.preserved);
+  assert.equal(anchors(result.ui.rendered).length,0);
 });

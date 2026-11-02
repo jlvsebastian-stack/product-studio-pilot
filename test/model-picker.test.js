@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {freshProject,applyReply} from '../public/studio-store.js';
+import {outlineApprovalCurrent,expandedOutlineApprovalCurrent} from '../public/outline-plan.js';
 import {recordRequest,requestMessages} from '../public/composer.js';
+import {namedSectionEditRequest} from '../public/scoped-edit-request.js';
 import {createProviderManager} from '../src/providers.js';
 const picker=await import('../public/model-access.js').catch(()=>({}));
 const sol={provider:'chatgpt',model:'gpt-6.1-sol',reasoningEffort:'high'};
@@ -55,18 +57,25 @@ test('duplicate startup signals and repeated check clicks never start a second h
   const pending=access.check(sol);access.check(sol);assert.equal(calls,1);complete({available:true,message:'Available'});await pending;await access.check(sol);assert.equal(calls,1);
   const again=access.check(sol,{force:true});assert.equal(calls,2);assert.equal(access.ready,false);complete({available:true,message:'Available'});await again;assert.equal(access.ready,true);
 });
-test('browser confirmation expires after five minutes and the same choice must consult the helper again',async()=>{
-  let clock=1000,checks=0;
-  const access=picker.createModelAccess({now:()=>clock,request:async()=>{checks++;return {available:true,message:'Available'};}});
-  await access.check(sol);clock+=299999;assert.equal(access.ready,true);clock++;
-  assert.equal(access.ready,false,'Five-minute-old readiness cannot enable Send or Retry');await access.check(sol);assert.equal(checks,2);assert.equal(access.ready,true);
+test('a confirmed exact choice stays ready for this app session until explicit revocation',async()=>{
+  let clock=1000,checks=0,response={available:true,message:'Available'};
+  const access=picker.createModelAccess({now:()=>clock,request:async()=>{checks++;return response;}});
+  await access.check(sol);clock+=300001;
+  assert.equal(access.ready,true,'Passing five minutes must not revoke a working selected model');assert.equal(access.state.status,'ready');
+  await access.check(sol);assert.equal(checks,1,'The same confirmed choice must not start a background helper probe');
+  clock+=24*60*60*1000;assert.equal(access.ready,true);await access.check(sol);assert.equal(checks,1);
+  access.invalidate('The provider rejected the request. Check again.');assert.equal(access.ready,false);assert.equal(access.state.status,'unconfirmed');
+  let complete;response=new Promise(resolve=>{complete=resolve;});const pending=access.check(sol);assert.equal(checks,2);assert.equal(access.ready,false,'An invalidated choice requires an actual new checked response');
+  complete({available:true,message:'Available again'});await pending;assert.equal(access.ready,true);
+  response={available:false,message:'This quality is unsupported'};await access.check({...sol,reasoningEffort:'xhigh'});assert.equal(access.ready,false);assert.equal(access.state.selection.reasoningEffort,'xhigh');
+  access.clear();assert.equal(access.ready,false);assert.equal(access.state.status,'idle');assert.equal(access.results.size,0);
 });
 test('the actual send failure invalidates access while retaining exact choice, retry references and new typing',async()=>{
   let checks=0;const access=picker.createModelAccess({request:async()=>{checks++;return {available:true,message:'Available'};}});await access.check(sol);
   const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8'),sendSource=source.slice(source.indexOf('async function send('),source.indexOf('\nasync function advance('));
   const project=freshProject(),reference={id:'guide',name:'Creator guide.txt',kind:'file',mimeType:'text/plain',text:'Reference context',status:'ready',note:'Parsed locally'};
   project.pendingAnswer='Use the guide';project.pendingReferences=[reference];let interviews=0;
-  const scope={working:false,runtimeReady:true,accountReady:true,modelAccess:access,canUseModel:()=>access.ready,state:project,provider:sol.provider,selectedModel:sol.model,quality:sol.reasoningEffort,revisionMode:false,referenceComposer:()=>({ready:true,addLinks:async()=>{}}),extractHttpLinks:()=>[],recordRequest,requestMessages,studio:{profile:{}},activePreferences:()=>[],save(){},renderChat(){},notice(){},panel(){},post:async()=>{interviews++;if(interviews>1)return {message:'A successful retry',brief:{}};project.pendingAnswer='A new thought while waiting';throw Error('Provider connection failed');},busy(value){scope.working=value;},applyReply,renderPreferences(){},updateModelNote(){},schedulePreview(){}};
+  const scope={namedSectionEditRequest,outlineApprovalCurrent,expandedOutlineApprovalCurrent,working:false,runtimeReady:true,accountReady:true,modelAccess:access,canUseModel:()=>access.ready,state:project,provider:sol.provider,selectedModel:sol.model,quality:sol.reasoningEffort,revisionMode:false,referenceComposer:()=>({ready:true,addLinks:async()=>{}}),extractHttpLinks:()=>[],recordRequest,requestMessages,studio:{profile:{}},activePreferences:()=>[],save(){},renderChat(){},notice(){},panel(){},post:async()=>{interviews++;if(interviews>1)return {message:'A successful retry',brief:{}};project.pendingAnswer='A new thought while waiting';throw Error('Provider connection failed');},busy(value){scope.working=value;},applyReply,renderPreferences(){},updateModelNote(){},schedulePreview(){}};
   vm.createContext(scope);vm.runInContext(sendSource,scope);await scope.send('Use the guide',true);
   assert.equal(access.ready,false,'The real send catch must invalidate the browser confirmation');assert.equal(project.retryRequest.text,'Use the guide');assert.equal(project.retryRequest.references[0].id,'guide');assert.equal(project.pendingAnswer,'A new thought while waiting');assert.equal(scope.selectedModel,'gpt-6.1-sol');assert.equal(scope.quality,'high');
   await scope.send('',false,{retry:true});assert.equal(interviews,1,'Retry cannot call the provider before a fresh check');await access.check(sol);assert.equal(checks,2);assert.equal(access.ready,true);
@@ -77,11 +86,16 @@ test('invalidating an in-flight check prevents its stale success from restoring 
   const pending=access.check(sol);access.invalidate('The connection changed. Check again.');complete({available:true,message:'Old result'});await pending;
   assert.equal(access.ready,false);assert.equal(access.state.status,'unconfirmed');assert.equal(access.results.size,0);
 });
-test('the real provider checker and picker distinguish temporary quota from a definite model rejection',async()=>{
+test('the real provider checker and picker distinguish temporary rate limits from a definite model rejection',async()=>{
   for(const [stderr,status] of [['rate_limit_exceeded: usage quota reached','busy'],['model_not_found: the model does not exist','unavailable']]){
     const manager=createProviderManager({resolveCli:()=>({file:process.execPath,prefix:[]}),execute:async(_,args)=>args[0]==='login'?{code:0,stdout:'Logged in using ChatGPT',stderr:''}:{code:1,stdout:'',stderr}});
     const access=picker.createModelAccess({request:selection=>manager.checkModel(selection.provider,selection)});await access.check(sol);
     assert.equal(access.ready,false);assert.equal(access.state.status,status);assert.equal(access.results.get(picker.modelAccessKey(sol))?.status,status==='unavailable'?'unavailable':undefined);assert.equal(access.state.selection.model,'gpt-6.1-sol');
+  }
+});
+test('the actual picker retains definite provider-code evidence despite a trailing CLI transport wrapper',async()=>{
+  for(const [code,status]of [['model_not_found','unavailable'],['context_length_exceeded','busy'],['usage_limit_reached','busy']]){
+    let calls=0;const manager=createProviderManager({resolveCli:()=>({file:process.execPath,prefix:[]}),execute:async(_,args)=>{if(args[0]==='login')return {code:0,stdout:'Logged in using ChatGPT',stderr:''};calls++;assert.equal(args[args.indexOf('--model')+1],sol.model);return {code:1,stdout:JSON.stringify({type:'turn.failed',error:{code,message:'Private provider detail'}}),stderr:'ERROR: stream disconnected before completion: connection reset'};}}),access=picker.createModelAccess({request:selection=>manager.checkModel(selection.provider,selection)});await access.check(sol);assert.equal(access.ready,false);assert.equal(access.state.status,status);assert.equal(access.state.selection.model,sol.model);assert.equal(access.state.selection.reasoningEffort,sol.reasoningEffort);assert.match(access.state.message,new RegExp(code));assert.equal(calls,1);
   }
 });
 test('the actual model note keeps success quiet and shows actionable checking or failure retry',async()=>{
@@ -90,7 +104,7 @@ test('the actual model note keeps success quiet and shows actionable checking or
   const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8'),noteSource=source.slice(source.indexOf('function updateModelNote('),source.indexOf('\nfunction renderModels('));
   const option={value:sol.model,dataset:{label:'Sol'},textContent:'Sol'};
   const nodes={'model-note':{hidden:false},'model-access-status':{textContent:''},'check-model-access':{hidden:false},model:{options:[option]}};
-  const scope={$:id=>nodes[id],modelAccess:access,runtimeReady:true,accountReady:true,runtimeError:'',working:false,provider:sol.provider,quality:sol.reasoningEffort,modelAccessKey:picker.modelAccessKey,checkSelectedModel(){}};
+  const scope={state:{id:'model-note-project'},slideBusy:()=>false,canvaJobs:new Map(),$:id=>nodes[id],modelAccess:access,runtimeReady:true,accountReady:true,runtimeError:'',working:false,provider:sol.provider,quality:sol.reasoningEffort,modelAccessKey:picker.modelAccessKey,checkSelectedModel(){}};
   vm.createContext(scope);vm.runInContext(noteSource,scope);scope.updateModelNote();
   assert.equal(nodes['model-note'].hidden,true,'Normal success needs no visible status announcement');assert.equal(nodes['model-access-status'].textContent,'');assert.equal(nodes['check-model-access'].hidden,true);assert.equal(option.textContent,'Sol');
   access.invalidate('The last reply failed. Check again.');scope.updateModelNote();assert.equal(nodes['model-note'].hidden,false);assert.equal(nodes['check-model-access'].hidden,false);assert.match(nodes['model-access-status'].textContent,/last reply failed/);
@@ -98,7 +112,7 @@ test('the actual model note keeps success quiet and shows actionable checking or
   response={available:false,message:'This model is unsupported'};await access.check(sol,{force:true});scope.updateModelNote();assert.match(option.textContent,/unavailable/);assert.equal(nodes['check-model-access'].hidden,false);
   const checking=access.check(sol,{force:true});scope.updateModelNote();assert.equal(nodes['model-note'].hidden,false);assert.match(nodes['model-access-status'].textContent,/Checking model access/);assert.equal(nodes['check-model-access'].hidden,true);await checking;
 });
-test('actual expiry, visibility and busy callbacks refresh Sol High once without retrying quota or failure',async context=>{
+test('actual visibility and busy callbacks never periodically probe a confirmed choice or retry a real failure',async context=>{
   context.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
   const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
   const modelSource=source.slice(source.indexOf('const selectedCombination='),source.indexOf('\nfunction title('));
@@ -106,11 +120,11 @@ test('actual expiry, visibility and busy callbacks refresh Sol High once without
   const visibilitySource=source.split('\n').find(line=>line.startsWith("document.addEventListener('visibilitychange'"));
   const calls=[],nodes={busy:{style:{}},'busy-title':{textContent:''}},document={hidden:false,addEventListener(_,callback){this.onVisibility=callback;}};
   let response={available:true,message:'Ready'};
-  const scope={provider:sol.provider,selectedModel:sol.model,quality:sol.reasoningEffort,working:false,runtimeReady:true,accountReady:true,document,createModelAccess:picker.createModelAccess,modelAccessKey:picker.modelAccessKey,post:async(_,selection)=>{calls.push(JSON.parse(JSON.stringify(selection)));return response;},updateModelNote(){},renderChat(){},render(){},$:id=>nodes[id],state:{pendingAnswer:'My unsent creator input'}};
+  const scope={view:'brief',provider:sol.provider,selectedModel:sol.model,quality:sol.reasoningEffort,working:false,runtimeReady:true,accountReady:true,document,createModelAccess:picker.createModelAccess,modelAccessKey:picker.modelAccessKey,post:async(_,selection)=>{calls.push(JSON.parse(JSON.stringify(selection)));return response;},updateModelNote(){},renderChat(){},render(){},$:id=>nodes[id],state:{pendingAnswer:'My unsent creator input'}};
   vm.createContext(scope);vm.runInContext(modelSource+'\n'+busySource+'\n'+visibilitySource+'\nglobalThis.access=modelAccess;',scope);
-  await scope.access.check(sol);context.mock.timers.tick(300000);await Promise.resolve();await Promise.resolve();assert.equal(calls.length,2,'Foreground expiry must refresh automatically');assert.deepEqual(calls[1],sol);assert.equal(scope.access.ready,true);
-  document.hidden=true;context.mock.timers.tick(300000);assert.equal(calls.length,2,'A hidden tab must not launch periodic checks');document.hidden=false;document.onVisibility();await Promise.resolve();await Promise.resolve();assert.equal(calls.length,3);
-  scope.busy(true);context.mock.timers.tick(300000);assert.equal(calls.length,3,'Expiry waits for the active interview');scope.busy(false);await Promise.resolve();await Promise.resolve();assert.equal(calls.length,4);
-  response={available:false,retryable:true,message:'Quota reached. Retry after reset.'};context.mock.timers.tick(300000);await Promise.resolve();await Promise.resolve();assert.equal(calls.length,5);assert.equal(scope.access.state.status,'busy');context.mock.timers.tick(600000);document.onVisibility();scope.busy(false);assert.equal(calls.length,5,'Quota must not create an automatic retry loop');
-  scope.access.invalidate('The last reply failed');document.onVisibility();scope.busy(false);assert.equal(calls.length,5,'A real failure requires an explicit retry');scope.accountReady=false;scope.access.clear();document.onVisibility();assert.equal(calls.length,5);assert.equal(scope.selectedModel,'gpt-6.1-sol');assert.equal(scope.quality,'high');assert.equal(scope.state.pendingAnswer,'My unsent creator input');
+  await scope.access.check(sol);context.mock.timers.tick(300001);await Promise.resolve();await Promise.resolve();assert.equal(calls.length,1,'Five minutes of foreground time must not launch another helper probe');assert.equal(scope.access.ready,true);
+  document.hidden=true;context.mock.timers.tick(300000);assert.equal(calls.length,1);document.hidden=false;document.onVisibility();await Promise.resolve();await Promise.resolve();assert.equal(calls.length,1,'Returning to the app reuses the same confirmed choice');
+  scope.busy(true);context.mock.timers.tick(300000);scope.busy(false);await Promise.resolve();await Promise.resolve();assert.equal(calls.length,1,'Finishing a successful interview must not trigger an expiry check');assert.equal(scope.access.ready,true);
+  response={available:false,retryable:true,message:'Quota reached. Retry after reset.'};await scope.access.check(sol,{force:true});assert.equal(calls.length,2);assert.deepEqual(calls[1],sol);assert.equal(scope.access.state.status,'busy');assert.equal(scope.access.ready,false);context.mock.timers.tick(600000);document.onVisibility();scope.busy(false);assert.equal(calls.length,2,'Quota must not create an automatic retry loop');
+  scope.access.invalidate('The last reply failed');document.onVisibility();scope.busy(false);assert.equal(calls.length,2,'A real failure requires an explicit retry');scope.accountReady=false;scope.access.clear();document.onVisibility();assert.equal(calls.length,2);assert.equal(scope.selectedModel,'gpt-6.1-sol');assert.equal(scope.quality,'high');assert.equal(scope.state.pendingAnswer,'My unsent creator input');
 });

@@ -35,7 +35,7 @@ test('sample and drafting explanations preserve the manuscript and do not imply 
 test('an explanation during an unperformed market check retains the honest research boundary',async()=>{
   const result=await run(5,{...blank(),marketEvidence:'Research UNRUN; no offers inspected.'});
   assert.ok(result.message.startsWith(answer));
-  assert.equal(result.stageReady,false);assert.match(result.message,/unverified/);
+  assert.equal(result.stageReady,false);assert.equal(result.brief.marketEvidence,'Research UNRUN; no offers inspected.');assert.doesNotMatch(result.message,/verified (?:sales|demand|research)/i);
   assert.doesNotMatch(result.message,/which two|send (?:me )?(?:two |competitor )?links/i);
 });
 

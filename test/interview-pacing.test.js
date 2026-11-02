@@ -1,3 +1,4 @@
+import {withApprovedOutline,fixtureHeadings} from './interview-fixtures.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -8,7 +9,7 @@ import { freshProject } from '../src/product.js';
 const blank=()=>freshProject().brief;
 const request=(extra={})=>({interviewStage:1,messages:[{role:'user',content:'I build booking websites with payment confirmations and reminder email.'}],brief:blank(),...extra});
 const reply=(brief={},extra={})=>({message:'What was the exact opening hook, and what childhood memory inspired it?',stageReady:false,summary:'More personal detail needed.',brief:{...blank(),...brief},...extra});
-const run=(input,output)=>interview(input,{infer:async()=>output});
+const run=(input,output)=>interview(withApprovedOutline(input,fixtureHeadings(output.brief)),{infer:async()=>output});
 const topic='Booking websites with payment confirmations';
 const sample='## Choose a booking task\n\nStart with the next booking action. List the information needed to complete it, then remove any field that does not change the next action.';
 
@@ -124,7 +125,7 @@ test('missing core decisions ask one purposeful question instead of a personal q
 test('design uses approved preferences and proposed defaults then presents a sample for review',async()=>{
   let supplied;
   const brief={...blank(),topic,format:'Guide',outline:'Choose a booking task\nCheck the confirmation'};
-  const result=await interview(request({interviewStage:9,brief,approvedDraft:'',preferences:[{id:'voice',text:'Use warm, direct English.',category:'voice',source:'explicit'}]}),{infer:async(_,prompt)=>{supplied=prompt;return reply({...brief,productDraft:sample},{message:'Which childhood phrase shaped your voice? Which fonts do you remember liking?'});}});
+  const result=await interview(withApprovedOutline(request({interviewStage:9,brief,approvedDraft:'',currentInput:'Create the first representative sample.',preferences:[{id:'voice',text:'Use warm, direct English.',category:'voice',source:'explicit'}]})),{infer:async(_,prompt)=>{supplied=prompt;return reply({...brief,productDraft:sample},{message:'Which childhood phrase shaped your voice? Which fonts do you remember liking?'});}});
   assert.equal(result.stageReady,true);
   assert.match(result.brief.tone,/warm, direct English/i);
   assert.match(result.brief.design,/readab|clear|proposed/i);
@@ -138,7 +139,7 @@ test('design uses approved preferences and proposed defaults then presents a sam
 test('drafting presents newly written material for approval instead of demanding another personal anecdote',async()=>{
   const draft=sample+'\n\n## Check the confirmation\n\nMake one test booking. Confirm that its time, amount and next action agree across the page and message.';
   const brief={...blank(),topic,format:'Guide',outline:'Choose a booking task\nCheck the confirmation',productDraft:sample};
-  const result=await run(request({interviewStage:10,brief,approvedDraft:sample}),reply({...brief,productDraft:draft},{message:'What childhood memory changed your approach?'}));
+  const result=await run(request({interviewStage:10,brief,approvedDraft:sample,currentInput:'Draft the next planned section.'}),reply({...brief,productDraft:draft},{message:'What childhood memory changed your approach?'}));
   assert.equal(result.brief.productDraft,draft);
   assert.ok(result.brief.productDraft.startsWith(sample));
   assert.doesNotMatch(result.message,/childhood|\?/i);
@@ -181,7 +182,7 @@ test('actual stage advancement displays a natural approval while the global prom
   const advance=source.slice(source.indexOf('async function advance('),source.indexOf('\nasync function prepareCompletion('));
   const state={interviewStage:1,stageReady:true,summary:'Booking websites',brief:blank(),notes:[]};
   let displayed;
-  const scope={working:false,canUseModel:()=>true,state,STAGES:[['Discover',''],['Find a useful problem','']],save(){},send:async text=>{displayed=text;}};
+  const scope={working:false,canUseModel:()=>true,hasConcepts:()=>false,state,STAGES:[['Discover',''],['Find a useful problem','']],save(){},send:async text=>{displayed=text;}};
   vm.createContext(scope);vm.runInContext(advance,scope);await scope.advance();
   assert.equal(state.interviewStage,2);assert.equal(state.stageReady,false);assert.equal(state.notes[0].summary,'Booking websites');
   assert.match(displayed,/approve.*continue/i);assert.ok(displayed.length<100);
@@ -195,7 +196,7 @@ test('a representative sample can retain its factual question without being mark
   const brief={...blank(),topic,format:'Guide',outline:'Choose a booking task\nCheck the confirmation'};
   const draft=sample+'\n\nKeep the cancellation notice marked for confirmation.';
   const question='To make the cancellation example accurate, which notice period should the policy use?';
-  const result=await run(request({interviewStage:9,brief,approvedDraft:''}),reply({...brief,productDraft:draft},{message:question}));
+  const result=await run(request({interviewStage:9,brief,approvedDraft:'',currentInput:'Create the first representative sample.'}),reply({...brief,productDraft:draft},{message:question}));
   assert.equal(result.stageReady,false);assert.equal(result.brief.productDraft,draft);
   assert.ok(result.message.includes(question));
 });

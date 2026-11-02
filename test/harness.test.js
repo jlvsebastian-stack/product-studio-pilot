@@ -1,3 +1,4 @@
+import {withApprovedOutline,fixtureHeadings} from './interview-fixtures.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import { createProviderManager, inferenceArguments } from '../src/providers.js';
 
 const request=(extra={})=>({interviewStage:1,messages:[{role:'user',content:'I helped a new coach turn a confusing intake into three specific questions.'}],brief:freshProject().brief,...extra});
 const response=(brief={},extra={})=>({message:'What did you change, and why?',stageReady:false,summary:'One concrete case.',brief:{...freshProject().brief,...brief},...extra});
-const run=(input,output)=>interview(input,{infer:async()=>output});
+const run=(input,output)=>interview(withApprovedOutline(input,fixtureHeadings(output.brief)),{infer:async()=>output});
 const known={topic:'Coach intake',buyer:'New independent coaches',outcome:'Choose three useful intake questions',method:'Remove questions that do not change a decision',example:'A confusing intake became three specific questions',limits:'Does not diagnose or offer legal advice',niche:'New independent coaches preparing a first client intake',offer:'An intake question guide',format:'Guide',outline:'Choose the decision\nWrite three questions',tone:'Plain and direct',design:'Readable ink palette'};
 
 test('old requests stay valid and new brief and response fields default safely',async()=>{
@@ -82,7 +83,7 @@ test('a representative sample cannot silently expand before creator approval',as
   assert.equal(initial.brief.productDraft,'');assert.equal(initial.stageReady,false);
   const unapproved=await run(request({interviewStage:10,approvedDraft:'',brief:{...freshProject().brief,...known,productDraft:sample}}),response({...known,productDraft:sample+'\n\n## Write three questions\n\nMore sections.'},{stageReady:true}));
   assert.equal(unapproved.brief.productDraft,sample);assert.equal(unapproved.stageReady,false);
-  const approved=await run(request({interviewStage:10,approvedDraft:sample,brief:{...freshProject().brief,...known,productDraft:sample}}),response({...known,productDraft:sample+'\n\n## Write three questions\n\nAsk about one actual decision.'}));
+  const approved=await run(request({interviewStage:10,approvedDraft:sample,currentInput:'Draft the next planned section.',brief:{...freshProject().brief,...known,productDraft:sample}}),response({...known,productDraft:sample+'\n\n## Write three questions\n\nAsk about one actual decision.'}));
   assert.match(approved.brief.productDraft,/Ask about one actual decision/);
 });
 
@@ -119,7 +120,8 @@ test('stage10 blocks H1 and mixed-section expansion beyond one unreviewed actual
 test('a document title, one actual section and subordinate or fenced headings remain a valid sample',async()=>{
   const productDraft='# Coach intake guide\n\n## Choose the decision\n\nWrite the decision first.\n\n### Worked example\n\nAn illustrative example.\n\n```markdown\n# This heading is example code\n## So is this one\n```\n\n### Your turn\n\nWrite one decision.';
   const brief={...freshProject().brief,...known,title:'Coach intake guide'};
-  const result=await run(request({interviewStage:9,brief,approvedDraft:''}),response({...brief,productDraft},{stageReady:true}));
+  const data=withApprovedOutline(request({interviewStage:9,brief,approvedDraft:'',currentInput:'Create the first sample.'}),['Choose the decision']);
+  const result=await interview(data,{infer:async()=>response({...brief,productDraft},{stageReady:true})});
   assert.equal(result.brief.productDraft,productDraft);assert.equal(result.stageReady,true);
 });
 
@@ -127,10 +129,10 @@ test('one H1 addition and refinements within that unapproved section remain avai
   const approved='# Coach intake guide\n\n## Approved sample\n\nKeep these creator-approved words exactly.';
   const proposal=approved+'\n\n# Next section\n\nA proposed instruction.\n\n### Worked example\n\nAn illustrative first example.';
   const brief={...freshProject().brief,...known,title:'Coach intake guide',productDraft:approved};
-  const added=await run(request({interviewStage:10,brief,approvedDraft:approved}),response({...brief,productDraft:proposal}));
+  const added=await run(request({interviewStage:10,brief,approvedDraft:approved,currentInput:'Draft the next planned section.'}),response({...brief,productDraft:proposal}));
   assert.equal(added.brief.productDraft,proposal);
   const refined=proposal.replace('An illustrative first example.','A clearer illustrative example.\n\n### Check your work\n\nCheck whether the question changes a decision.');
-  const result=await run(request({interviewStage:10,brief:{...brief,productDraft:proposal},approvedDraft:approved}),response({...brief,productDraft:refined}));
+  const result=await run(request({interviewStage:10,brief:{...brief,productDraft:proposal},approvedDraft:approved,revisionIntent:true,currentInput:'Rewrite the worked-example paragraph in Next section.'}),response({...brief,productDraft:refined}));
   assert.equal(result.brief.productDraft,refined);assert.ok(result.brief.productDraft.startsWith(approved));
 });
 
@@ -139,7 +141,7 @@ test('approved draft remains an exact prefix unless revision was explicitly requ
   const input=request({interviewStage:11,approvedDraft:approved,brief:{...freshProject().brief,...known,productDraft:approved}});
   const revised=response({...known,productDraft:'## First section\n\nA model rewrite.'},{stageReady:true});
   const protectedResult=await run(input,revised);assert.equal(protectedResult.brief.productDraft,approved);assert.equal(protectedResult.stageReady,false);
-  const explicit=await run({...input,revisionIntent:true},response({...known,productDraft:'## First section\n\nA requested rewrite.'}));assert.match(explicit.brief.productDraft,/requested rewrite/);
+  const explicit=await run({...input,revisionIntent:true},response({...known,productDraft:'## First section\r\n\r\nA requested rewrite.'}));assert.match(explicit.brief.productDraft,/requested rewrite/);
 });
 
 test('legacy requests protect their accumulated draft rather than treating it as empty',async()=>{
@@ -233,5 +235,5 @@ test('interview forwards selected quality and reports unavailable models without
     if(args[0]==='login')return {code:0,stdout:'Logged in using ChatGPT',stderr:''};
     calls++;return {code:1,stdout:'',stderr:'The requested model gpt-6.1-sol is not supported for this account.'};
   }});
-  await assert.rejects(manager.infer('chatgpt','Context',{}, {model:'gpt-6.1-sol'}),/choose another model/i);assert.equal(calls,1);
+  await assert.rejects(manager.infer('chatgpt','Context',{}, {model:'gpt-6.1-sol'}),error=>error.modelUnavailable===true&&/selected.*model or quality setting is unavailable/i.test(error.message));assert.equal(calls,1);
 });

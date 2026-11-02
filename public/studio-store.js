@@ -1,8 +1,23 @@
 import {cleanReferences,projectReferences} from './composer.js';
+import {DESIGN_CONCEPTS,cleanCanvaSample,cleanSlideProduction,canvaEditorUrl} from './design-concepts.js';
+import {cleanGoogleDelivery} from './google-delivery.js';
+import {cleanQualityReview,qualityReviewKey} from './quality-review.js';
 const PROJECTS='product-studio-projects-v3', PROFILE='product-studio-preferences-v1';
 const categories=['voice','design','workflow'];
 export const PREFERENCE_LIMIT=80;
 export const activePreferences=profile=>profile.preferences.slice(0,PREFERENCE_LIMIT).map(({id,text,category,source})=>({id,text,category,source}));
+export function cleanCanvaJob(value){
+  if(!value||typeof value.id!=='string'||!value.id||value.id.length>150||!['running','approval','ready','unavailable','failed'].includes(value.status))return null;
+  const clean={id:value.id,status:value.status,direct:value.direct===true,mode:value.mode==='deck'?'deck':'samples'};
+  for(const key of ['key','sourceFingerprint','fullSourceFingerprint','conceptId','sourceTitle','productionId','sampleJobId'])if(typeof value[key]==='string')clean[key]=value[key].slice(0,key==='sourceTitle'?240:key==='key'?30000:800);
+  if(typeof value.message==='string')clean.message=value.message.slice(0,2000);if(value.design&&canvaEditorUrl(value.design.url)&&typeof value.design.id==='string')clean.design={id:value.design.id.slice(0,150),url:canvaEditorUrl(value.design.url)};
+  if(clean.status==='ready'&&clean.design&&typeof value.qualityReviewContext==='string'&&value.qualityReviewContext.length<=1000000){const review=cleanQualityReview(value.qualityReview);if(review){clean.qualityReview=review;clean.qualityReviewContext=value.qualityReviewContext;}}
+  return clean;
+}
+export function cleanCanvaHandoff(value){
+  if(!value||!['samples','deck'].includes(value.mode)||!DESIGN_CONCEPTS.some(item=>item.id===value.conceptId)||typeof value.key!=='string'||value.key.length>30000||!['chatgpt','claude'].includes(value.provider)||typeof value.model!=='string'||!value.model||value.model.length>200||!['medium','high','xhigh'].includes(value.reasoningEffort))return null;
+  return {mode:value.mode,conceptId:value.conceptId,key:value.key,provider:value.provider,model:value.model,reasoningEffort:value.reasoningEffort,...typeof value.productionId==='string'&&value.productionId.length<=150?{productionId:value.productionId}:{}};
+}
 export function currentDraftSection(project){
   const draft=project.brief.productDraft||'',approved=project.approvedDraft||'',pending=draft!==approved;
   const source=(pending&&approved&&draft.startsWith(approved)?draft.slice(approved.length):draft).replace(/\r\n/g,'\n').trim();
@@ -16,7 +31,7 @@ export const blankBrief=()=>Object.fromEntries(briefKeys.map(k=>[k,k==='theme'?'
 const id=()=>globalThis.crypto?.randomUUID?.()||`project-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const normalized=t=>String(t).trim().toLowerCase().replace(/\s+/g,' ');
 const emptyProfile=()=>({preferences:[],candidates:[],forgotten:[],paused:false});
-export const freshProject=()=>({id:id(),updatedAt:Date.now(),brief:blankBrief(),interviewStage:1,messages:[{role:'assistant',content:FIRST}],notes:[],stageReady:false,summary:'',reviewed:false,files:null,demo:false,pendingAnswer:'',references:[],pendingReferences:[],retryRequest:null,approvedDraft:'',previousApprovedDraft:'',sampleApproved:false,coverImage:'',suggestions:[],companions:[],changeNote:''});
+export const freshProject=()=>({id:id(),updatedAt:Date.now(),brief:blankBrief(),interviewStage:1,messages:[{role:'assistant',content:FIRST}],notes:[],stageReady:false,summary:'',reviewed:false,files:null,demo:false,pendingAnswer:'',references:[],pendingReferences:[],retryRequest:null,presentationDesign:null,canvaSample:null,canvaDeck:null,canvaJob:null,canvaHandoff:null,googleDelivery:null,approvedCanvaSampleId:'',slideProduction:null,slideConcepts:null,approvedOutline:'',expandedOutline:'',approvedExpandedOutline:'',approvedDraft:'',previousApprovedDraft:'',sampleApproved:false,coverImage:'',suggestions:[],companions:[],changeNote:''});
 
 function readProject(raw,{newId=false}={}){
   const source=raw?.project?{...raw.project,interviewStage:raw.project.stage}:raw;
@@ -26,12 +41,17 @@ function readProject(raw,{newId=false}={}){
   p.interviewStage=source.interviewStage??1;
   if(!Number.isInteger(p.interviewStage)||p.interviewStage<1||p.interviewStage>12)throw Error('This project has an invalid creation stage.');
   for(const key of ['pendingAnswer','summary','approvedDraft','previousApprovedDraft','coverImage','changeNote'])if(source[key]!==undefined){if(typeof source[key]!=='string')throw Error('This project has invalid text fields.');p[key]=source[key];}
+  for(const [key,limit]of [['approvedOutline',12000],['expandedOutline',60000],['approvedExpandedOutline',60000]])if(source[key]!==undefined){if(typeof source[key]!=='string'||source[key].length>limit)throw Error('This project has invalid outline plan fields.');p[key]=source[key];}
   if(p.coverImage&&!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(p.coverImage))throw Error('Choose a PNG or JPEG image.');
   if(p.coverImage.length>1400000)throw Error('The project image exceeds the 1 MB limit.');
   for(const key of ['stageReady','demo','sampleApproved'])if(source[key]!==undefined){if(typeof source[key]!=='boolean')throw Error('This project has invalid approval fields.');p[key]=source[key];}
+  if(source.presentationDesign){const design=source.presentationDesign;if(!DESIGN_CONCEPTS.some(concept=>concept.id===design.conceptId)||typeof design.approved!=='boolean'||typeof design.sourceFingerprint!=='string'||design.sourceFingerprint.length>100)throw Error('This project has an invalid visual direction.');p.presentationDesign={conceptId:design.conceptId,approved:design.approved,sourceFingerprint:design.sourceFingerprint};}
+  p.canvaSample=cleanCanvaSample(source.canvaSample);p.canvaDeck=cleanCanvaSample(source.canvaDeck);p.canvaJob=cleanCanvaJob(source.canvaJob);p.canvaHandoff=cleanCanvaHandoff(source.canvaHandoff);if(source.approvedCanvaSampleId!==undefined){if(typeof source.approvedCanvaSampleId!=='string'||source.approvedCanvaSampleId.length>150)throw Error('This project has invalid Canva approval data.');p.approvedCanvaSampleId=source.approvedCanvaSampleId;}
+  p.slideProduction=cleanSlideProduction(source.slideProduction);p.slideConcepts=cleanSlideProduction(source.slideConcepts)||(p.slideProduction?.mode==='concepts'&&p.slideProduction.status==='ready'?p.slideProduction:null);p.googleDelivery=cleanGoogleDelivery(source.googleDelivery);
+  if(source.qualityReview?.sourceKey===qualityReviewKey(p.brief)){const review=cleanQualityReview(source.qualityReview.review);if(review)p.qualityReview={sourceKey:qualityReviewKey(p.brief),review};}
   if(source.messages!==undefined){if(!Array.isArray(source.messages)||source.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.content!=='string'))throw Error('This conversation is invalid.');p.messages=source.messages.map(({role,content})=>({role,content}));}
   p.references=cleanReferences(source.references);p.pendingReferences=cleanReferences(source.pendingReferences);cleanReferences(projectReferences(p));
-  if(source.retryRequest){const request=source.retryRequest;if(typeof request.text!=='string'||!Number.isInteger(request.messageIndex)||p.messages[request.messageIndex]?.role!=='user')throw Error('This project has an invalid retry checkpoint.');p.retryRequest={text:request.text,messageIndex:request.messageIndex,fromComposer:request.fromComposer===true,revisionIntent:request.revisionIntent===true,completion:request.completion===true,references:cleanReferences(request.references)};}
+  if(source.retryRequest){const request=source.retryRequest;if(typeof request.text!=='string'||!Number.isInteger(request.messageIndex)||p.messages[request.messageIndex]?.role!=='user')throw Error('This project has an invalid retry checkpoint.');p.retryRequest={text:request.text,messageIndex:request.messageIndex,fromComposer:request.fromComposer===true,revisionIntent:request.revisionIntent===true,completion:request.completion===true,...request.fullDraft===true?{fullDraft:true}:{},references:cleanReferences(request.references)};}
   else if(p.messages.at(-1)?.role==='assistant'&&p.messages.at(-1).content.startsWith('I couldn’t finish that reply.')){const messageIndex=p.messages.findLastIndex(m=>m.role==='user');if(messageIndex>=0)p.retryRequest={text:p.messages[messageIndex].content,messageIndex,fromComposer:true,revisionIntent:false,completion:false,references:p.references};}
   if(source.notes!==undefined){if(!Array.isArray(source.notes)||source.notes.some(n=>!n||!Number.isInteger(n.stage)||typeof n.title!=='string'||typeof n.summary!=='string'))throw Error('This project has invalid stage notes.');p.notes=source.notes.map(({stage,title,summary})=>({stage,title,summary}));}
   for(const [key,fields] of [['suggestions',['title','why','basis']],['companions',['title','format','why']]])if(source[key]!==undefined){if(!Array.isArray(source[key])||source[key].some(item=>!item||fields.some(field=>typeof item[field]!=='string')))throw Error('This project has invalid product suggestions.');p[key]=source[key].slice(0,6).map(item=>Object.fromEntries(fields.map(field=>[field,item[field]])));}
@@ -78,12 +98,27 @@ export function persistStudio(storage,studio){
 export function newProject(studio){const p=freshProject();studio.projects.unshift(p);studio.activeId=p.id;return p;}
 export function openProject(studio,projectId){const p=studio.projects.find(p=>p.id===projectId);if(!p)throw Error('This project could not be found.');studio.activeId=p.id;return p;}
 export function checkpoint(p){
-  const clean={};for(const key of ['id','updatedAt','brief','interviewStage','messages','notes','stageReady','summary','demo','pendingAnswer','approvedDraft','previousApprovedDraft','sampleApproved','coverImage','changeNote','suggestions','companions'])clean[key]=p[key];
+  const clean={};for(const key of ['id','updatedAt','brief','interviewStage','messages','notes','stageReady','summary','demo','pendingAnswer','approvedOutline','expandedOutline','approvedExpandedOutline','approvedDraft','previousApprovedDraft','sampleApproved','coverImage','changeNote','suggestions','companions'])clean[key]=p[key];
   clean.references=cleanReferences(p.references);clean.pendingReferences=cleanReferences(p.pendingReferences);cleanReferences(projectReferences(clean));
   clean.retryRequest=p.retryRequest?{...p.retryRequest,references:cleanReferences(p.retryRequest.references)}:null;
+  clean.presentationDesign=p.presentationDesign?{conceptId:p.presentationDesign.conceptId,approved:p.presentationDesign.approved,sourceFingerprint:p.presentationDesign.sourceFingerprint}:null;
+  clean.canvaSample=cleanCanvaSample(p.canvaSample);clean.canvaDeck=cleanCanvaSample(p.canvaDeck);clean.canvaJob=cleanCanvaJob(p.canvaJob);clean.canvaHandoff=cleanCanvaHandoff(p.canvaHandoff);clean.approvedCanvaSampleId=typeof p.approvedCanvaSampleId==='string'?p.approvedCanvaSampleId.slice(0,150):'';
+  clean.slideProduction=cleanSlideProduction(p.slideProduction);clean.slideConcepts=cleanSlideProduction(p.slideConcepts);
+  clean.googleDelivery=cleanGoogleDelivery(p.googleDelivery);
+  clean.qualityReview=null;
+  if(p.qualityReview?.sourceKey===qualityReviewKey(p.brief)){const review=cleanQualityReview(p.qualityReview.review);if(review)clean.qualityReview={sourceKey:qualityReviewKey(p.brief),review};}
   return clean;
 }
 export function importProject(studio,raw){const p=readProject(raw,{newId:true});studio.projects.unshift(p);studio.activeId=p.id;return p;}
+
+export function mergeSavedProjects(studio,library){
+  const meaningful=project=>project.interviewStage>1||project.messages.some(message=>message.role==='user')||['title','topic','buyer','outcome','outline','productDraft'].some(key=>project.brief[key]?.trim())||!!project.pendingAnswer;
+  const current=studio.projects.find(project=>project.id===studio.activeId),keepActive=current&&meaningful(current);
+  for(const raw of library.projects||[]){const incoming=readProject(raw),index=studio.projects.findIndex(project=>project.id===incoming.id);if(index<0)studio.projects.push(incoming);else if(incoming.updatedAt>studio.projects[index].updatedAt)studio.projects[index]=incoming;}
+  studio.projects.sort((a,b)=>b.updatedAt-a.updatedAt);
+  if(!keepActive){const saved=studio.projects.find(project=>project.id===library.activeId&&meaningful(project))||studio.projects.find(meaningful);if(saved)studio.activeId=saved.id;}
+  return studio.projects.find(project=>project.id===studio.activeId);
+}
 
 export function learnPreferences(profile,updates,currentInput){
   if(profile.paused)return;
@@ -105,12 +140,16 @@ export function forgetPreference(profile,preferenceId){const pref=[...profile.pr
 export function approveDraft(project){if(!project.brief.productDraft.trim())return;if(project.approvedDraft!==project.brief.productDraft){project.previousApprovedDraft=project.approvedDraft;project.approvedDraft=project.brief.productDraft;}project.sampleApproved=true;project.changeNote=project.interviewStage===9?'You approved this representative sample.':'You approved the current manuscript.';}
 export function undoApproval(project){if(!project.previousApprovedDraft)return;project.brief.productDraft=project.previousApprovedDraft;project.approvedDraft=project.previousApprovedDraft;project.previousApprovedDraft='';project.reviewed=false;project.files=null;project.changeNote='Restored the previous approved manuscript.';}
 export function applyReply(project,reply,revisionIntent=false,{profile,currentInput='',creatorInput=false}={}){
+  if(typeof reply.brief?.format==='string'&&reply.brief.format!==project.brief.format)project.approvedOutline='';
+  if(['outline','format'].some(key=>typeof reply.brief?.[key]==='string'&&reply.brief[key]!==project.brief[key]))project.approvedExpandedOutline='';
   const proposed=reply.brief?.productDraft;
   const protectedChange=project.approvedDraft&&!revisionIntent&&typeof proposed==='string'&&!proposed.startsWith(project.approvedDraft);
   if(revisionIntent&&project.approvedDraft&&typeof proposed==='string'&&proposed!==project.approvedDraft)project.previousApprovedDraft=project.approvedDraft;
   for(const key of briefKeys)if(typeof reply.brief?.[key]==='string'&&!(key==='productDraft'&&protectedChange))project.brief[key]=reply.brief[key];
+  if(typeof reply.expandedOutline==='string'&&reply.expandedOutline.length<=60000)project.expandedOutline=reply.expandedOutline;
   project.messages.push({role:'assistant',content:reply.message||'Your project is updated.'});project.stageReady=reply.stageReady===true;project.summary=reply.summary||'';
   project.suggestions=Array.isArray(reply.suggestions)?reply.suggestions.slice(0,6):[];project.companions=Array.isArray(reply.companions)?reply.companions.slice(0,6):[];
+  const review=cleanQualityReview(reply.qualityReview);if(review&&!protectedChange)project.qualityReview={sourceKey:qualityReviewKey(project.brief),review};else if(project.qualityReview?.sourceKey!==qualityReviewKey(project.brief))project.qualityReview=null;
   project.changeNote=protectedChange?'Your approved text was kept. Use Revise approved text to request a change.':reply.summary||'Your working brief and product have been updated.';
   if(profile&&creatorInput)learnPreferences(profile,reply.preferenceUpdates,currentInput);
   project.reviewed=false;project.files=null;project.updatedAt=Date.now();return {protectedChange};

@@ -36,7 +36,7 @@ async function makeDeck(design,brief){
   for(const scene of design.pages){
     const slide=deck.addSlide();
     for(const item of scene.items){
-      if(item.type==='text')slide.addText(item.text,{x:item.x/72,y:(item.y-1.5)/72,w:(geometry.width-geometry.margin-item.x+3)/72,h:(item.h+3)/72,objectName:'studio-'+(item.role||'heading'),fontFace:'Lato',fontSize:item.size,bold:item.bold,color:item.fill,margin:0,breakLine:false,paraSpaceAfterPt:0,valign:'top',wrap:false});
+      if(item.type==='text')slide.addText(item.text,{x:item.x/72,y:(item.y-1.5)/72,w:(item.w??geometry.width-geometry.margin-item.x+3)/72,h:(item.h+3)/72,objectName:'studio-'+(item.role||'heading'),fontFace:'Lato',fontSize:item.size,bold:item.bold,color:item.fill,margin:0,breakLine:false,paraSpaceAfterPt:0,valign:'top',wrap:false});
       else if(item.type==='rect'||item.type==='ellipse')slide.addShape(item.type==='rect'?deck.ShapeType.rect:deck.ShapeType.ellipse,{objectName:'studio-'+(item.role||'graphic'),x:item.x/72,y:item.y/72,w:item.w/72,h:item.h/72,fill:item.fill?{color:item.fill}:{color:'FFFFFF',transparency:100},line:item.stroke?{color:item.stroke,width:1}:{transparency:100}});
       else if(item.type==='line')slide.addShape(deck.ShapeType.line,{objectName:'studio-'+(item.role||'rule'),x:Math.min(item.x,item.x2)/72,y:Math.min(item.y,item.y2)/72,w:Math.abs(item.x2-item.x)/72,h:Math.abs(item.y2-item.y)/72,line:{color:item.stroke,width:item.width},flipV:item.y2<item.y});
       else if(item.type==='image')slide.addImage({data:item.image.data,x:item.x/72,y:item.y/72,w:item.w/72,h:item.h/72});
@@ -48,7 +48,7 @@ async function makeDeck(design,brief){
 async function exportDesign(raw,options={}){
   const project=projectSchema.parse(raw),brief=project.brief,manuscript=brief.productDraft;
   const blocks=parseManuscript(manuscript),draft=options.draft===true;
-  const bodyLength=blocks.filter(block=>block.kind==='body'||block.kind==='list'||block.kind==='code').reduce((length,block)=>length+block.text.length,0);
+  const bodyLength=blocks.filter(block=>['body','list','code','table'].includes(block.kind)).reduce((length,block)=>length+block.text.length,0);
   if(draft&&bodyLength<80)throw new Error('Add a substantive paragraph, worked example, template, or exercise of at least 80 characters before downloading a draft sample.');
   if(!draft&&(manuscript.trim().length<600||bodyLength<450))throw new Error('Add the actual teaching, examples, templates, or exercises before exporting. An outline alone is not a finished product.');
   const design=await designProduct(project,{...options,draft});

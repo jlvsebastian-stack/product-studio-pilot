@@ -6,6 +6,27 @@ import * as exports from '../src/exports.js';
 import { designProject } from './fixtures/design-project.js';
 const normalized=value=>value.replace(/\s+/g,' ').trim();
 const decode=xml=>xml.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
+
+test('a written sample keeps its canonical first H2 when it matches the cover title',async()=>{
+  const {designProduct,parseManuscript}=await import('../src/page-design.js');
+  for(const format of ['Practical guide','Workbook','Template kit']){
+    const project=designProject();project.brief.format=format;project.brief.title='Choose the Right Reply';
+    project.brief.productDraft='## Choose the Right Reply\n\nUse this reply when the buyer has supplied the cake size but has not confirmed delivery. Ask for the missing delivery detail before sending the order confirmation.\n\n### Creator Notes\n\nKeep the agreed cake details in the same message.\n\n## Confirm the Details\n\nSend the complete order details together so the buyer can check the size, flavor and delivery before agreeing.';
+    const source=project.brief.productDraft,design=await designProduct(project,{draft:true});
+    assert.equal(design.sections[0].title,project.brief.title);assert.equal(design.sections[0].heading.level,2);assert.deepEqual(design.sections.map(section=>section.title),['Choose the Right Reply','Confirm the Details']);
+    assert.deepEqual(design.blocks,parseManuscript(source,{writingFields:true}));assert.equal(project.brief.productDraft,source);
+    assert.ok(design.pages[0].items.some(item=>item.type==='text'&&item.text==='Choose the Right Reply'&&item.y>460),'The cover contents use the canonical section title.');
+    const content=design.pages.slice(1).flatMap(page=>page.items.filter(item=>item.type==='text').map(item=>item.text)).join(' ');
+    assert.ok(content.includes('Choose the Right Reply'));assert.ok(!design.pages.slice(1).some(page=>page.title==='Getting started'));
+    assert.ok(normalized(content).includes('Keep the agreed cake details in the same message.'));assert.ok(content.indexOf('Use this reply')<content.indexOf('Send the complete order details'));
+  }
+});
+
+test('a genuine matching H1 cover heading is deduplicated while written H2 sections remain',async()=>{
+  const {designProduct}=await import('../src/page-design.js'),project=designProject();
+  project.brief.format='Practical guide';project.brief.title='Choose the Right Reply';project.brief.productDraft='# Choose the Right Reply\n\n## Choose the Right Reply\n\nAsk for the missing delivery detail before confirming the cake order.\n\n## Confirm the Details\n\nKeep the agreed size, flavor and delivery in one clear message.';
+  const design=await designProduct(project,{draft:true});assert.deepEqual(design.sections.map(section=>section.title),['Choose the Right Reply','Confirm the Details']);assert.ok(design.sections.every(section=>section.heading?.level===2));assert.equal(design.blocks[0].level,1);
+});
 test('designed preview has real pages, varied purposes, native graphics and bounded geometry',async()=>{
   assert.equal(typeof exports.previewProduct,'function','a real designed preview is required');
   const preview=await exports.previewProduct(designProject());

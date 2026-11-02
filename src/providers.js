@@ -111,21 +111,88 @@ export function runProcess(command,args,{input='',cwd,env,timeout=30000,maxOutpu
   });
 }
 
-function definiteModelRejection(text){
-  if(/limit|quota|usage.?cap|temporar|overload|timeout|timed?\s*out|service.?unavailable/i.test(text))return false;
-  return /\b(?:model_not_found|invalid_model|unsupported_model|model_not_supported|unsupported_reasoning_effort|invalid_reasoning_effort)\b|(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not found|does not exist|invalid)|(?:unsupported|unknown|invalid).{0,90}(?:model|effort)|(?:do(?:es)? not|don't|doesn't) have access to.{0,60}model|(?:account|subscription).{0,60}not (?:allowed|permitted).{0,60}model|model.{0,100}(?:unavailable|not available).{0,60}(?:account|subscription)/i.test(text);
+const failureCodes={
+  usage_cap:['usage_limit_reached','usage_limit_exceeded','insufficient_quota','quota_exceeded','subscription_usage_limit_reached'],
+  rate_limit:['rate_limit_exceeded','rate_limit_error','too_many_requests'],
+  context_limit:['context_length_exceeded','context_window_exceeded','prompt_too_long','input_too_long'],
+  request_limit:['request_too_large','payload_too_large','input_size_exceeded','error_max_turns','max_turns_exceeded'],
+  output_limit:['max_output_tokens_exceeded','output_limit_exceeded','response_too_large','max_tokens_exceeded'],
+  model:['model_not_found','invalid_model','unsupported_model','model_not_supported','unsupported_reasoning_effort','invalid_reasoning_effort'],
+  authentication:['authentication_error','invalid_api_key','unauthorized','not_authenticated','token_expired'],
+  runtime:['server_error','internal_server_error','service_unavailable','overloaded_error','connection_error','stream_error','econnreset','epipe','eacces']
+};
+const categoryForCode=code=>Object.keys(failureCodes).find(category=>failureCodes[category].includes(String(code||'').toLowerCase()));
+function withoutRequest(text,{prompt='',input=''}={}){
+  let clean=String(text||'').replace(/\r\n/g,'\n');
+  // Codex's human CLI output may echo the entire private prompt. Never use that
+  // text, its JSON fields, or supplied quotations as provider error evidence.
+  for(const value of new Set([prompt,input].filter(Boolean).map(value=>String(value).replace(/\r\n/g,'\n')))){
+    if(value.includes('\n')||value.length>=80)for(const literal of [value,JSON.stringify(value)])clean=clean.split(literal).join('[request omitted]');
+    else clean=clean.split('\n').map(line=>line===value?'[request omitted]':line).join('\n');
+  }
+  return clean;
 }
-function failureMessage(id,result){
-  const text=result.stdout+'\n'+result.stderr;
-  if(/(?:image|vision|multimodal).{0,100}(?:not supported|unsupported|unavailable|not available)|(?:not supported|unsupported).{0,100}(?:image|vision|multimodal)|(?:unknown|unexpected|unrecognized).{0,50}(?:--image|--input-format)/i.test(text))return `${label(id)}'s selected model or local helper cannot accept these image inputs. Choose a compatible model or update the local helper, then retry. Your draft is saved.`;
-  if(/failed to initialize (?:in-process )?app-server client/i.test(text)&&/access is denied|os error 5/i.test(text))return 'Windows denied the local AI helper access to its normal runtime. Close Product Studio and relaunch it with normal local permissions, then retry. Your draft is saved.';
-  if(/limit|quota|rate.?limit|usage.?cap/i.test(text))return `Your ${label(id)} usage limit was reached. Your conversation is saved; wait for the limit to reset and retry.`;
-  if(definiteModelRejection(text))return `The selected ${label(id)} model or quality setting is unavailable for this account or local helper. Choose another model or quality setting and retry. Your draft is saved.`;
-  if(/401|unauthorized|authentication|not logged|login|sign.?in/i.test(text))return `Sign in to ${label(id)} again, then retry. Your draft is saved.`;
-  return `${label(id)} could not finish this request. Check the account connection and retry; your draft is saved.`;
+function errorRecord(value,fallback={}){
+  const extra=Object.fromEntries(Object.entries(fallback).filter(([,item])=>item!==undefined));
+  if(typeof value==='string')return {message:value.slice(0,8000),...extra};
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  return {message:typeof value.message==='string'?value.message.slice(0,8000):'',code:value.code,type:value.type,status:value.status??value.status_code??value.http_status,...extra};
 }
-function failureError(id,result){
-  return Object.assign(new Error(failureMessage(id,result)),{modelUnavailable:definiteModelRejection(result.stdout+'\n'+result.stderr)});
+function structuredErrors(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return [];
+  if(['error','turn.failed'].includes(value.type))return [errorRecord(value.error||value,{status:value.status??value.status_code??value.error?.status,code:value.error?.code??value.code,type:value.error?.type??value.subtype})].filter(Boolean);
+  if(value.type==='response.failed')return [errorRecord(value.response?.error)].filter(Boolean);
+  if(value.is_error===true){const errors=[...(Array.isArray(value.errors)?value.errors.slice(-8):[]),...(value.error?[value.error]:[]),...(typeof value.result==='string'?[value.result]:[])];return (errors.length?errors:[{type:value.subtype,code:value.code}]).map(item=>errorRecord(item,{type:typeof item==='object'?item?.type:value.subtype})).filter(Boolean);}
+  // An API error envelope is recognized only at its root, never by recursively
+  // searching arbitrary prompt/topic/result JSON for words such as "quota".
+  if(value.error&&Object.keys(value).every(key=>['error','status','status_code','http_status','type'].includes(key)))return [errorRecord(value.error,{status:value.status??value.status_code??value.http_status??value.error.status})].filter(Boolean);
+  return [];
+}
+function errorRecords(text){
+  const records=[];try{records.push(...structuredErrors(JSON.parse(text)));}catch{}
+  for(const raw of text.split('\n').slice(-200)){
+    const line=raw.trim();if(!line)continue;
+    try{records.push(...structuredErrors(JSON.parse(line)));continue;}catch{}
+    const prefixed=/^(?:(?:API\s+)?ERROR\s*:\s*|\d{4}-\d\d-\d\d\S*\s+ERROR\s+|Reconnecting\.\.\.\s*)/i.exec(line),message=prefixed?line.slice(prefixed[0].length):line,code=/^([a-z][a-z0-9_.-]{0,63})(?:\s*:\s*|$)/i.exec(message)?.[1];
+    const explicit=/^(?:(?:The|This)\s+(?:(?:selected|requested)\s+)?(?:model|reasoning effort|quality)|You (?:do not|don't) have access to .{0,40}model|You(?:'ve| have) (?:hit|reached|exceeded) (?:your )?(?:current )?(?:usage limit|quota)|Image inputs (?:are|is) not supported\b|Not (?:logged|signed) in|Unauthorized\b|Failed to initialize (?:in-process )?app-server client)/i.test(message);
+    if(prefixed||categoryForCode(code)||explicit){records.push({message,code:categoryForCode(code)?code:undefined});const jsonAt=message.indexOf('{');if(jsonAt>=0)try{records.push(...structuredErrors(JSON.parse(message.slice(jsonAt))));}catch{}}
+  }
+  return records;
+}
+function classifyFailure(record){
+  const text=record.message,code=[record.code,record.type].find(value=>categoryForCode(value)),known=categoryForCode(code),statusValue=record.status??text.match(/(?:^|\b)(?:HTTP(?: error)?\s*[:=]?\s*|unexpected status(?: code)?\s*:\s*|status(?:_code| code)?\s*[:=]\s*)([1-5]\d\d)\b/i)?.[1]??text.match(/^([1-5]\d\d)\b/)?.[1],status=Number.isInteger(Number(statusValue))&&Number(statusValue)>=100&&Number(statusValue)<=599?Number(statusValue):undefined;
+  let category=known;
+  if(!category&&/failed to initialize (?:in-process )?app-server client/i.test(text)&&/access is denied|os error 5/i.test(text))category='runtime';
+  if(!category&&/\b(?:maximum context length|context (?:window|length).{0,60}(?:exceeded|too (?:large|long)|limit))\b|\b(?:prompt|input) is too long\b/i.test(text))category='context_limit';
+  if(!category&&(status===413||/\b(?:request|payload).{0,35}(?:too large|size.{0,15}exceeded)\b|\bmaximum (?:number of )?turns (?:reached|exceeded)\b/i.test(text)))category='request_limit';
+  if(!category&&/\b(?:output|response).{0,30}(?:too large|length limit|token limit|limit (?:reached|exceeded))\b|\bmax(?:imum)?[_ ]output[_ ]tokens\b/i.test(text))category='output_limit';
+  if(!category&&/^(?:You(?:'ve| have) (?:hit|reached|exceeded) (?:your )?(?:current )?(?:usage limit|quota))\b|\b(?:subscription|daily|weekly|monthly|usage) (?:limit|cap) (?:has been |is |was )?(?:reached|exceeded|exhausted)\b/i.test(text))category='usage_cap';
+  if(!category&&(status===429||/^rate limit (?:reached|exceeded)|\btoo many requests\b/i.test(text)))category='rate_limit';
+  if(!category&&/(?:image|vision|multimodal).{0,100}(?:not supported|unsupported|unavailable|not available)|(?:not supported|unsupported).{0,100}(?:image|vision|multimodal)|(?:unknown|unexpected|unrecognized).{0,50}(?:--image|--input-format)/i.test(text))category='image_input';
+  if(!category&&!/temporar|overload|timeout|timed?\s*out|service.?unavailable/i.test(text)&&/(?:model|reasoning|effort|quality).{0,120}(?:not supported|unsupported|not found|does not exist|invalid)|(?:unsupported|unknown|invalid).{0,90}(?:model|effort)|(?:do(?:es)? not|don't|doesn't) have access to.{0,60}model|(?:account|subscription).{0,60}not (?:allowed|permitted).{0,60}model|model.{0,100}(?:unavailable|not available).{0,60}(?:account|subscription)/i.test(text))category='model';
+  if(!category&&(status===401||status===403||/^(?:unauthorized|authentication (?:failed|required)|not (?:logged|signed) in|please (?:log|sign) in)\b/i.test(text)))category='authentication';
+  if(!category&&(status>=500||/disconnect|connection (?:reset|refused|closed)|\bEOF\b|temporar|overload|timed?\s*out|runtime|app-server/i.test(text)))category='runtime';
+  return {category:category||'generic',...(code?{code:String(code).toLowerCase()}:{}),...(status?{status}:{}),retryable:category!=='model'};
+}
+function failureError(id,result,request){
+  const structured=[...errorRecords(withoutRequest(result.stdout,request)),...errorRecords(withoutRequest(result.stderr,request))],classified=structured.map(classifyFailure),coded=classified.filter(item=>item.code),conflicting=new Set(coded.map(item=>item.category)).size>1;
+  // Explicit allowlisted provider codes outrank an uncoded CLI transport wrapper.
+  // Conflicting coded categories are uncertain; stream order cannot resolve them.
+  const diagnostic=conflicting?{category:'generic',type:'conflicting_provider_errors',retryable:true}:coded.at(-1)||classified.findLast(item=>item.category!=='generic')||classified.at(-1)||{category:'generic',retryable:true};
+  const name=label(id),messages={
+    usage_cap:`${name} reported a usage cap for this request. Your draft is saved; check the provider's usage and reset details before retrying.`,
+    rate_limit:`${name} temporarily rate-limited this request. Your draft is saved; wait briefly before retrying the same selection.`,
+    context_limit:`This ${name} request exceeded its context length. Your draft is saved; reduce the request or reference material before retrying.`,
+    request_limit:`This ${name} request reached a request-size or per-request limit. Your draft is saved; try a smaller request.`,
+    output_limit:`The ${name} reply reached an output-length limit. Your draft is saved; request a smaller section before retrying.`,
+    model:`The selected ${name} model or quality setting is unavailable for this account or local helper. Your selection and draft are saved; check this selection before retrying.`,
+    authentication:`Sign in to ${name} again, then retry. Your draft is saved.`,
+    image_input:`${name}'s selected model or local helper cannot accept these image inputs. Choose a compatible model or update the local helper, then retry. Your draft is saved.`,
+    runtime:`The ${name} helper or connection could not finish this request. Your draft is saved; retry this same selection when the connection is ready.`,
+    generic:`${name} could not finish this request. Your selection and draft are saved; you can retry this request.`
+  };
+  const windowsDenied=diagnostic.category==='runtime'&&(!diagnostic.code||diagnostic.code==='eacces')&&structured.some(record=>/failed to initialize (?:in-process )?app-server client/i.test(record.message)&&/access is denied|os error 5/i.test(record.message)),message=conflicting?`${name} returned conflicting error details. Your selection and draft are saved; check this request again when the connection is ready.`:windowsDenied?'Windows denied the local AI helper access to its normal runtime. Close Product Studio and relaunch it with normal local permissions, then retry. Your draft is saved.':messages[diagnostic.category];
+  return Object.assign(new Error(message+` [${diagnostic.code||diagnostic.type||diagnostic.category}${diagnostic.status?`; HTTP ${diagnostic.status}`:''}]`),{modelUnavailable:diagnostic.category==='model',providerDiagnostic:diagnostic});
 }
 
 export function inferenceArguments(id,{schemaPath,outputPath,search=false,model,reasoningEffort,imagePaths=[],multimodal=false}={}){
@@ -237,13 +304,13 @@ export function createProviderManager({env=process.env,resolveCli=resolveVendorC
       const input=id==='claude'&&attached.length?JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:prompt},...attached.map(image=>({type:'image',source:{type:'base64',media_type:image.mimeType,data:image.data}}))]},parent_tool_use_id:null})+'\n':prompt;
       const args=inferenceArguments(id,{schemaPath:id==='claude'?JSON.stringify(schema):schemaPath,outputPath,search,...selected,imagePaths,multimodal:attached.length>0});
       const result=await execute(command(id),args,{input,cwd:directory,env:childEnv,timeout:search?180000:420000});
-      if(result.code!==0)throw failureError(id,result);
+      if(result.code!==0)throw failureError(id,result,{prompt,input});
       if(id==='chatgpt'){
         try{return JSON.parse(await readFile(outputPath,'utf8'));}catch{throw new Error('ChatGPT returned an unreadable reply. Your draft is unchanged; retry your question.');}
       }
       let value;
       try{value=JSON.parse(result.stdout);}catch{throw new Error('Claude returned an unreadable reply. Your draft is unchanged; retry your question.');}
-      if(value.is_error)throw failureError(id,result);
+      if(value.is_error)throw failureError(id,result,{prompt,input});
       if(value.structured_output&&typeof value.structured_output==='object')return value.structured_output;
       if(typeof value.result==='string'){
         try{return JSON.parse(value.result);}catch{}

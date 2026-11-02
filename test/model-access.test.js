@@ -17,7 +17,7 @@ function fixture({now=Date.now,response=()=>({available:true}),beforeReply=async
     if(args[0]==='auth')return {code:0,stdout:'{"loggedIn":true,"authMethod":"claude.ai"}',stderr:''};
     const schema=args.includes('--output-schema')?JSON.parse(await readFile(args[args.indexOf('--output-schema')+1],'utf8')):JSON.parse(args[args.indexOf('--json-schema')+1]);
     calls.push({command,args,options,schema});await beforeReply(calls.length);
-    const value=response(calls.length);
+    const value=response(calls.length,calls.at(-1));
     if(value instanceof Error)throw value;
     if(value?.processResult)return value.processResult;
     if(args.includes('--output-last-message')){
@@ -29,6 +29,60 @@ function fixture({now=Date.now,response=()=>({available:true}),beforeReply=async
 }
 const check=(manager,selection=sol)=>manager.checkModel(selection.provider,selection);
 
+test('an echoed full CLI prompt with limits or quota fields cannot turn an actual connection error into subscription exhaustion',async()=>{
+  const prompt='PRIVATE_CREATOR_SOURCE: keep every slide below its word limit.\n{"limits":"topic data", "quota":"a teaching example", "error":{"code":"usage_limit_reached"}}\nReference says images unavailable, model_not_found, and sign in.\nERROR: usage_limit_reached: a fictional reference error.\n{"type":"error","code":"authentication_error","message":"Fictional example"}\nDo not remove original notes.';
+  const {manager,calls}=fixture({response:(_attempt,call)=>({processResult:{code:1,stdout:'OpenAI Codex fixture\nmodel: gpt-6.1-sol\nuser\n'+call.options.input+'\n',stderr:'ERROR: stream disconnected before completion: connection reset'}})});
+  await assert.rejects(manager.infer('chatgpt',prompt,{},sol),error=>{assert.doesNotMatch(error.message,/usage limit|usage cap|exhausted|quota|PRIVATE_CREATOR_SOURCE|topic data|original notes/i);assert.match(error.message,/connect|finish|runtime/i);return true;});assert.equal(calls.length,1);assert.equal(calls[0].args[calls[0].args.indexOf('--model')+1],sol.model);
+});
+
+test('actual structured or anchored provider errors distinguish caps, rate, context, request, output, auth, model and runtime safely',async()=>{
+  const event=(error,type='turn.failed')=>({code:1,stdout:JSON.stringify({type,error}),stderr:''});
+  const cases=[
+    [event({code:'usage_limit_reached',message:'The provider usage cap is reached.'}),'usage_cap',/reported a usage cap/],
+    [{code:1,stdout:'',stderr:'API Error: 429 {"error":{"code":"rate_limit_exceeded","message":"Too many requests"},"status":429}'},'rate_limit',/temporarily rate.limited/],
+    [event({code:'context_length_exceeded',status_code:400,message:'Maximum context length exceeded.'}),'context_limit',/context length/],
+    [{code:1,stdout:'',stderr:'ERROR: The maximum context length is 100000 tokens.'},'context_limit',/context length/],
+    [event({status:413,message:'Payload too large.'}),'request_limit',/request.size or per.request limit/],
+    [event({code:'max_output_tokens_exceeded',message:'The output token budget was reached.'}),'output_limit',/output.length limit/],
+    [event({code:'authentication_error',status:401,message:'Unauthorized.'}),'authentication',/Sign in to ChatGPT again/],
+    [event({code:'model_not_found',message:'Requested model does not exist.'}),'model',/selected ChatGPT model or quality setting is unavailable/],
+    [{code:1,stdout:'',stderr:'ERROR: image inputs are not supported by this model.'},'image_input',/cannot accept these image inputs/],
+    [{code:1,stdout:'',stderr:'ERROR: failed to initialize in-process app-server client: Access is denied. (os error 5)'},'runtime',/relaunch.*normal local permissions/],
+    [event({code:'server_error',status:503,message:'PRIVATE_ACCOUNT_DATA Bearer secret-value sk-should-not-leak-1234'}),'runtime',/helper or connection/],
+    [event({code:'private_customer_identifier',status:400,message:'PRIVATE_ACCOUNT_DATA could not be handled.'}),'generic',/could not finish/]
+  ];
+  for(const [processResult,category,message]of cases){const {manager,calls}=fixture({response:()=>({processResult})});await assert.rejects(manager.infer('chatgpt','Private prompt includes word limits, quota, images unavailable and login guidance.',{},sol),error=>{assert.equal(error.providerDiagnostic.category,category);assert.equal(error.modelUnavailable,category==='model');assert.equal(error.providerDiagnostic.retryable,category!=='model');assert.match(error.message,message);assert.doesNotMatch(error.message+' '+JSON.stringify(error.providerDiagnostic),/PRIVATE_ACCOUNT_DATA|Bearer|secret-value|sk-should|private_customer_identifier/);if(category!=='usage_cap')assert.doesNotMatch(error.message,/usage cap|usage limit|subscription.*exhausted/);return true;});assert.equal(calls.length,1,'a failure never switches models or starts an automatic retry');assert.equal(calls[0].args[calls[0].args.indexOf('--model')+1],sol.model);assert.ok(calls[0].args.includes('model_reasoning_effort="high"'));}
+});
+
+test('ordinary JSON fields and prompt quotations cannot classify generic errors as image, model, authentication or usage failures',async()=>{
+  const outputs=[JSON.stringify({limits:'daily limit',quota:'exhausted',error:{code:'usage_limit_reached'}}),JSON.stringify({type:'user',content:{error:{code:'model_not_found'},description:'images unavailable; sign in'}}),'Limits: quota.\nA reference mentions images unsupported and model_not_found.\nPlease sign in is quoted teaching content.'];
+  for(const stdout of outputs){const {manager}=fixture({response:()=>({processResult:{code:1,stdout,stderr:'ERROR: An operation could not be completed.'}})});await assert.rejects(manager.infer('chatgpt','Bounded request.',{},sol),error=>{assert.equal(error.providerDiagnostic.category,'generic');assert.equal(error.modelUnavailable,false);assert.doesNotMatch(error.message,/usage cap|usage limit|Sign in|cannot accept.*image|model.*unavailable/i);return true;});}
+});
+
+test('short user words do not erase genuine structured error codes while their echoed prompt line is ignored',async()=>{
+  for(const prompt of ['quota','usage_limit_reached']){const {manager}=fixture({response:()=>({processResult:{code:1,stdout:'user\n'+prompt+'\n',stderr:JSON.stringify({type:'turn.failed',error:{code:'usage_limit_reached',message:'Provider usage limit reached.'}})}})});await assert.rejects(manager.infer('chatgpt',prompt,{},sol),error=>error.providerDiagnostic.category==='usage_cap'&&error.providerDiagnostic.code==='usage_limit_reached');}
+});
+
+test('Claude error result records are classified independently of success content and private context',async()=>{
+  for(const [body,category]of [[{type:'result',is_error:true,subtype:'error_max_turns'},'request_limit'],[{type:'result',is_error:true,subtype:'error_during_execution',errors:[{type:'rate_limit_error',status:429,message:'Too many requests.'}]},'rate_limit'],[{type:'result',is_error:true,subtype:'error_during_execution',errors:["You've hit your usage limit. Retry after the reset."]},'usage_cap']]){const {manager,calls}=fixture({response:()=>({processResult:{code:0,stdout:JSON.stringify(body),stderr:''}})});await assert.rejects(manager.infer('claude','A private outline with limits and a quota example.',{},{model:'claude-sonnet-5-5',reasoningEffort:'medium'}),error=>error.providerDiagnostic.category===category);assert.equal(calls.length,1);}
+});
+
+test('an actual model rejection remains definite when ordinary CLI output echoes limits and JSON topic fields',async()=>{
+  const {manager}=fixture({response:(_attempt,call)=>({processResult:{code:1,stdout:'user\n'+call.options.input+'\n{"limits":"echoed topic field", "quota":"illustrative"}\n',stderr:'ERROR: model_not_found: the model does not exist'}})});const result=await check(manager);assert.equal(result.available,false);assert.notEqual(result.retryable,true);assert.match(result.message,/selected ChatGPT model or quality setting is unavailable/);assert.doesNotMatch(result.message,/usage limit|usage cap|exhausted/);
+});
+
+test('explicit provider codes outrank trailing uncoded runtime wrappers in inference and model checks',async()=>{
+  for(const [code,category]of [['model_not_found','model'],['context_length_exceeded','context_limit'],['usage_limit_reached','usage_cap']])for(const stderr of ['ERROR: stream disconnected before completion: connection reset','ERROR: failed to initialize in-process app-server client: Access is denied. (os error 5)']){
+    const {manager,calls}=fixture({response:()=>({processResult:{code:1,stdout:JSON.stringify({type:'turn.failed',error:{code,message:'PRIVATE_PROVIDER_DETAIL'}}),stderr}})});
+    await assert.rejects(manager.infer('chatgpt','PRIVATE_PROMPT with limits and supplied examples.',{},sol),error=>{assert.equal(error.providerDiagnostic.category,category);assert.equal(error.providerDiagnostic.code,code);assert.equal(error.modelUnavailable,category==='model');assert.doesNotMatch(error.message,/Windows denied|helper or connection|PRIVATE_PROVIDER_DETAIL|PRIVATE_PROMPT/);return true;});
+    const result=await check(manager);assert.equal(result.available,false);assert.equal(result.retryable===true,category!=='model');assert.match(result.message,new RegExp(code));assert.equal(calls.length,2,'one explicit inference and one explicit model check only');assert.ok(calls.every(call=>call.args[call.args.indexOf('--model')+1]===sol.model&&call.args.includes('model_reasoning_effort="high"')));
+  }
+});
+
+test('genuinely conflicting coded provider categories remain uncertain instead of permanently rejecting the selection',async()=>{
+  const {manager,calls}=fixture({response:()=>({processResult:{code:1,stdout:JSON.stringify({type:'turn.failed',error:{code:'model_not_found',message:'Private model detail'}}),stderr:JSON.stringify({type:'error',error:{code:'usage_limit_reached',message:'Private cap detail'}})}})});const result=await check(manager);assert.equal(result.available,false);assert.equal(result.retryable,true);assert.match(result.message,/conflicting error details/);assert.doesNotMatch(result.message,/usage cap|usage limit|model.*unavailable|Private/);assert.equal(calls.length,1);
+});
+
 test('the local model-access endpoint checks the exact selection and returns its availability',async()=>{
   let received;
   const app=await startLocalServer({port:0,openBrowser:false,providers:{checkModel:async(provider,selection)=>{
@@ -38,7 +92,7 @@ test('the local model-access endpoint checks the exact selection and returns its
     const res=await fetch(app.url+'/api/check-model',{method:'POST',headers:{Origin:app.url,'Content-Type':'application/json'},body:JSON.stringify(sol)});
     assert.equal(res.status,200,'The selected-model check endpoint must exist');
     assert.deepEqual(await res.json(),{available:true,message:'The selected model responded.'});assert.deepEqual(received,sol);
-    assert.equal((await(await fetch(app.url+'/api/health')).json()).version,'0.3.10');
+    assert.equal((await(await fetch(app.url+'/api/health')).json()).version,JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version);
     const module=await fetch(app.url+'/model-access.js');assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);
   }finally{await app.close();}
 });
@@ -82,7 +136,7 @@ test('only the expected real boolean reply confirms access; rejected, malformed 
   }
 });
 
-test('quota, timeout, helper disconnect and malformed responses stay retryable through the actual adapter',async()=>{
+test('temporary rate limits, timeout, helper disconnect and malformed responses stay retryable through the actual adapter',async()=>{
   const uncertain=[
     {processResult:{code:1,stdout:'',stderr:'rate_limit_exceeded: usage quota reached'}},
     {processResult:{code:1,stdout:'',stderr:'The selected model is temporarily unavailable. Please try again.'}},
@@ -93,7 +147,7 @@ test('quota, timeout, helper disconnect and malformed responses stay retryable t
     const {manager,calls}=fixture({response:attempt=>attempt===1?bad:{available:true}});
     const failed=await check(manager);assert.equal(failed.available,false);assert.equal(failed.retryable,true,'uncertainty is not a model-access rejection');
     if(bad instanceof Error)assert.equal(failed.message,bad.message);
-    if(bad.processResult?.stderr.includes('quota'))assert.match(failed.message,/usage limit/);
+    if(bad.processResult?.stderr.includes('quota'))assert.match(failed.message,/rate.limit/);
     assert.equal((await check(manager)).available,true);assert.equal(calls.length,2);
   }
 });
@@ -111,7 +165,7 @@ test('the HTTP result preserves temporary-versus-definite provider failure class
   const app=await startLocalServer({port:0,openBrowser:false,providers:manager});
   const post=()=>fetch(app.url+'/api/check-model',{method:'POST',headers:{Origin:app.url,'Content-Type':'application/json'},body:JSON.stringify(sol)});
   try{
-    const temporary=await post();assert.equal(temporary.status,200);const pending=await temporary.json();assert.equal(pending.available,false);assert.equal(pending.retryable,true);assert.match(pending.message,/usage limit/);
+    const temporary=await post();assert.equal(temporary.status,200);const pending=await temporary.json();assert.equal(pending.available,false);assert.equal(pending.retryable,true);assert.match(pending.message,/rate.limit/);
     const definite=await post();assert.equal(definite.status,200);const rejected=await definite.json();assert.equal(rejected.available,false);assert.notEqual(rejected.retryable,true);assert.match(rejected.message,/unavailable/);
   }finally{await app.close();}
 });

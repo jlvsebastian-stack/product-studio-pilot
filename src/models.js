@@ -1,6 +1,6 @@
 // Selection is explicit; this catalog does not prove an account can use a model.
 export const modelCatalog={
-  chatgpt:[{id:'gpt-6.1-sol',label:'GPT-6.1 Sol',recommended:false},{id:'gpt-6-astra',label:'GPT-6 Astra',recommended:true}],
+  chatgpt:[{id:'gpt-6.1-sol',label:'GPT-6.1 Sol',recommended:false},{id:'gpt-6.1-terra',label:'GPT-6.1 Terra',recommended:false},{id:'gpt-6-astra',label:'GPT-6 Astra',recommended:true}],
   claude:[{id:'claude-sonnet-5-5',label:'Claude Sonnet 5.5',recommended:true},{id:'claude-opus-5-5',label:'Claude Opus 5.5',recommended:false}]
 };
 export function modelOptions(provider,{model,reasoningEffort='medium'}={}){

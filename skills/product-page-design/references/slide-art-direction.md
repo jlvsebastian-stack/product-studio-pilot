@@ -1,0 +1,63 @@
+# Per-slide art direction
+
+Use this common production contract with exactly one selected presentation variation. Adapt Rizza's deliberate slide process to the current creator; her brand, personal facts, likeness and Office deliverables are not defaults for this app.
+
+Scope: webinar and presentation slides only. Do not apply this 14-word canvas limit or slide art direction to ebooks, guides, workbook pages, templates or spreadsheets; use their format-specific craft and design rules. A course may contain several formats, each with its own design requirements.
+
+## Subject-specific visual identity
+
+<!-- Modified 2026-11-02: design guidance adapted from Anthropic skills (Apache-2.0), pinned at ca45fc496a3436251f191354091d557da31c15b5. See THIRD_PARTY_NOTICES.md. -->
+
+Reuse the compact Design Direction in product-page-design and the creator’s chosen concept. Let the audience, exact lesson and supplied references determine the visual language; the app’s branding and an upstream author’s palette are not defaults. Carry palette roles, type scale and illustration treatment through varied compositions. One focal idea per slide is stronger than ornamental labels or repeated cards. Keep imagery explanatory and concrete enough for this learner; a subtle abstract reference must not obscure the teaching relationship. Apply this within existing planning and sample review, without another questionnaire, art manifesto or raster mockup. Inspect real Canva pages; a prompt or theme name alone does not establish polish.
+
+## Plan before producing
+
+Reuse the known audience, approved content and preferences. Do not start another questionnaire. Each rendered slide needs its own stable source ID, teaching purpose, core message, visual idea, artwork prompt, composition, editable headline/anchors and presenter notes. Pick the visual because it explains this slide's message. Keep the canonical manuscript and source notes unchanged.
+
+## Less text
+
+Use at most 14 total visible words, counting the title and every label. A short title plus two or three labels is usually enough. Put explanations, qualifications, demonstrations, examples and transitions in native presenter notes. Retain the full original audience wording alongside the original notes in the private production/source record and notes, so concise slides do not erase knowledge. Do not silently remove exceptions or invent a simpler claim. Tables may need concise labels or more than one deliberate slide rather than smaller type.
+
+## One brief and asset per slide
+
+Interpret before illustrating. Read the slide title, concise canvas copy, full audience source and original notes together. Name the learner's question and the single visual takeaway: what should the learner understand after seeing this graphic? Use headline clues to find the important contrast, choice, change or mechanism; the headline is not a list of nouns to decorate.
+
+Translate that takeaway into **objects, actions and relationships**. Record two to four exact source anchors and map each to a visible feature: who acts, what changes, where the action ends, and what depends on what. Put that mapping, the learner's question and the intended visual takeaway into the actual artwork prompt. Explain the relationship in plain language before choosing its composition. Alternatives stay independent; a choice branches from a shared input; a chronological process alone uses ordered steps. Position editable labels beside their matching row, region or endpoint, following the illustration's actual arrangement rather than imposing a generic column template.
+
+Describe a bespoke graphic using concrete scene instructions: recognizable subject, exact action, necessary visual evidence, direction or independence of relationships, intended contrast and exclusions. If the source says payment confirmation unlocks digital access, show that dependency and a digital destination; a parcel, padlock or money icon alone does not teach it. If it compares three options, the viewer must see three distinct outcomes without falsely implying a mandatory sequence. Do not invent results, metrics, working interfaces or unsupported mechanisms.
+
+Apply the unrelated-slide test before generation: could this picture move to an unrelated slide unchanged? If yes, redesign it. A different decorative prop, eight generic icons or a pretty scene with the right palette is not an explanation. Preserve the chosen illustrated direction; native text and useful geometry complement the illustration rather than silently replacing it.
+
+For the website lesson, make the visitor journeys visibly different: awareness leads to a contact action, lead capture uses a form/submission destination, and direct sales includes payment confirmation before access. These are alternatives, not mandatory sequential stages. Use one consistent guide when comparing them; do not invent a named product, working screenshot or commercial result. Leave all labels as editable text.
+
+Write a specific artwork prompt for every new slide: intended meaning, exact objects/relationships, style inherited from the concept, arrangement, focal point, crop, palette, quiet area for editable text, and exclusions. Reuse an unchanged slide's existing asset before generating anything; preserve its original MEDIA reference, source mapping and notes. A shared style, paper texture or brand mark can recur, but a repeated hero image is not a new slide illustration. Prepare missing unique artwork only when it will be used in the delivered Canva slide. Store the real asset ID and generation prompt against the slide. Missing or failed artwork stays explicitly unfinished; do not substitute a stock image, icon-only fallback, recycled browser illustration or placeholder and call it generated.
+
+Generate standalone artwork with no letters or numbers, audience wording, logos, fabricated statistics, fake testimonials or implied working screenshots. Negative space inside a page or card is intentional; do not fill it with pseudo-text or garbled labels. Keep headline, labels, diagram annotations and body text as separate editable Canva elements. Never generate the creator's likeness without an explicit source-specific request and approval.
+
+## Compose for meaning
+
+Use visual evidence, not a style adjective, to judge the plan. When showing quantities, keep a shared unit, meaningful scale and consistent baseline; when showing alternatives, keep them independent; when teaching a mechanism, show the dependency. Use only supplied or explicitly illustrative amounts. A well-crafted native diagram is appropriate when it teaches the relationship more clearly than raster art, but it cannot silently replace the creator's approved illustrations. Pick the medium for meaning before spending a generation request.
+
+Every title uses Title Case, capitalizing each word while preserving acronyms and proper names. Count the title and all labels together: at most 14 words. Prefer a title plus two or three short labels, never a paragraph under a heading. The presenter explains the detail from notes.
+
+Give the visual a deliberate, substantial footprint, normally about20–35% of the canvas. Measure the actual contained picture, not an empty wide image frame. Do not leave a small floating square in a panoramic slot; match the generated aspect ratio to the composition. Use a coherent background, clear alignment and deliberate crop. A caption or border cannot rescue a generic image. Keep at least40% quiet space alongside meaningful visual scale.
+
+Maintain at least **40% empty space on every slide**. Use the remaining area intentionally; do not shrink the art into a decorative corner. Choose a composition separately for each slide: a panoramic sequence, centered visual with sparse surrounding labels, an asymmetric statement, a diagram-led comparison, an image-led lesson or a purposeful exercise. Change the visual mode and arrangement across the sequence instead of repeating left text/right image. Carry typography, palette and illustration treatment consistently across those changes. A text-led page still needs a specific design instruction and deliberate focal point.
+
+## Choose, sample, approve
+
+First show three distinct lightweight template previews. These demonstrate a style, not finished personalized slides. The creator chooses ONE template before custom planning or image generation. One explicit Create in Canva action reuses matching original artwork, prepares only missing final-slide illustrations and then creates exactly THREE actual editable sample slides in that direction. There is no local mockup approval between artwork and Canva. That action authorizes only the selected private draft's validated creation/edit/save steps; do not ask permission for every slide. The saved manual option can request individual artwork approvals. Reviewing the finished Canva samples remains a separate creator decision. Give the samples different teaching purposes and compositions, including a demanding comparison or process. If the manuscript has fewer than three sections, multiple planned pages can teach different aspects of one source section; retain its complete wording and notes rather than inventing another lesson. Obtain visual approval through the verified Canva editor link before expanding the deck. Keep the template choice separate from sample approval and global preferences. Never substitute static template preview graphics for the delivered artwork or treat creation as aesthetic acceptance.
+
+For feedback about one illustration, revise only that saved page. Preserve the other completed artwork, canonical text and notes; keep the parent version available. Use the original Canva MEDIA reference for an image edit, not its small preview. All words and labels belong in editable text elements, so explicitly request standalone text-free art and inspect the actual returned image for accidental lettering. A revised sample requires visual review again.
+
+Before native delivery, check source coverage in slide text plus notes, exact source-note preservation, meaningful image-to-message fit, duplicate hero assets, consecutive layout repetition, real text bounds, contrast, the 40% minimum and actual native notes. Source/code checks do not establish beauty. Use external Canva editor links for human review; keep the app focused on progress.
+
+Reference adaptations: [ai-boost Business Presentation Design Expert](https://github.com/ai-boost/awesome-prompts/blob/main/library/en/business.md) informs clear visual narrative; its [Visual Design Director](https://github.com/ai-boost/awesome-prompts/blob/main/library/en/image-4.md) identifies palette, hierarchy, typography and output constraints as a coordinated system. [oil-oil's README skill](https://github.com/oil-oil/beautify-github-readme/blob/main/skills/beautify-github-readme/SKILL.md) contributes project-derived motifs, one communication job per visual and real rendered proof. These are original presentation-specific adaptations, not copied prompt packages or permission to import their tools, add intake questions or replace Canva with SVG delivery.
+
+## Native Sample Review
+
+For presentations and webinars, choose one of three lightweight template directions, then create exactly three real editable Canva sample slides with native presenter notes. Review those actual slides through their verified Canva editor link and obtain the creator's visual approval before expansion. The app shows progress and one persistent current-action bar; do not ask the creator to search for scattered confirmations.
+
+Do not generate raster images to simulate a Canva preview. Preserve the creator's chosen illustrated direction and reuse the unchanged approved assets in the real Canva samples. Prepare unique missing artwork for those delivered slides; do not replace it with an icon-only deck. Keep all text and useful native diagram geometry editable around the separate image assets. Preserve source-specific visual planning, varied composition, Title Case titles, at most14 visible words and at least40% empty space. Source and full original notes remain intact.
+
+The explicit Create in Canva action authorizes only that private draft's validated import and necessary edits/save. Routine steps need no repeated tool confirmation. This never grants sharing, publishing, unrelated design access or human aesthetic approval. A verified draft link is ready for review; the creator separately approves its look. Unknown accepted creation outcomes must be reconciled, never blindly duplicated.
