@@ -2,37 +2,47 @@
 
 Created by Josh Sebastian.
 
-A local app that interviews you about your knowledge and helps you create a useful, designed digital product. Watch your brief, outline and product pages develop in the workspace. It runs on your computer, in your browser, using your own ChatGPT or Claude subscription. This is a separate project from the KKY platform.
+Turn what you know into a useful digital product, with help from AI. Develop your idea through a conversation, watch the product take shape, and review the finished files.
 
-## Beta 0.3.21
-
-Start with a small, trusted test group. Windows with a supported ChatGPT/Codex subscription is the tested path. Mac launch and live Claude generation still need independent testing. Creating native Canva, Google Docs or Google Sheets files currently requires the ChatGPT/Codex provider and the creator's own connected accounts; the Claude path offers local PDF/text output. No hosting or API key is needed. See [TESTER-START.md](TESTER-START.md) for the short test journey and [TESTED.md](TESTED.md) for proof and limits.
-
-Design guidance adapts Anthropic's Apache-2.0 frontend-design, canvas-design and theme-factory skills to the creator's brief and our native-file workflow. Each format keeps its own visual rules; explicit preferences and the approved sample take priority over defaults. This does not change the selected AI model or guarantee a particular aesthetic result. Attribution and adaptation details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-Presentations use three art directions: **Quiet editorial**, **Signal studio**, and **Warm dimension**. Each slide gets a teaching purpose, visual idea, original artwork prompt and individual composition. Choose one template first, then generate and review three sample slides in that style before building the rest. The template previews are lightweight examples; only the selected style receives custom artwork. Illustrations run automatically by default, with an optional manual setting. Feedback can update one illustration without regenerating the other samples. New slides usually use fewer than 15 visible words, with the full source and explanations kept in presenter notes. Every slide retains at least40% empty space.
-
-The original-artwork path currently uses your own connected Canva tools through ChatGPT/Codex. Planned image creation runs automatically after your template choice or illustration feedback; optional manual mode asks for each image. Existing unchanged artwork is saved locally and reused. Small local image previews are distinct from the original Canva MEDIA assets used in the editable presentation. Missing connections, failed generation or unconfirmed native notes remain unfinished; PDF and text are available as content fallbacks.
+Product Studio runs on your computer and opens in your browser. You use your own AI account. This project is separate from the KKY platform.
 
 ## Install with one message
 
-In **ChatGPT desktop with local work enabled, Codex, or Claude Code**, send:
+**For this beta, Windows with ChatGPT/Codex is the tested option.** Mac startup and live Claude generation still need testing. See [beta status](#beta-0321).
+
+### 1. Open an AI assistant on your computer
+
+Use **Codex**, **Claude Code**, or **ChatGPT desktop with local computer tools enabled**.
+
+The assistant needs permission to work with files and start apps on your computer. A regular ChatGPT or Claude website chat without those tools cannot install Product Studio.
+
+### 2. Copy and send this message
 
 > Install Product Studio from https://github.com/jlvsebastian-stack/product-studio-pilot on my computer, set up its launcher, and open it.
 
-The assistant should follow [INSTALL.md](INSTALL.md), handle Node.js and dependencies, and install the small launch shortcut. You do not need to copy terminal commands. Your AI may request its normal permission to install software or open the browser.
+### 3. Let the assistant finish setup
 
-Use a local-capable assistant. A regular ChatGPT or Claude website chat without local computer tools cannot install or launch software on your computer.
+The assistant downloads Product Studio, sets up the software it needs, and opens the app in your browser. It may ask permission to install software or open the browser.
+
+You do not need to type technical commands. The detailed instructions for your assistant are in [INSTALL.md](INSTALL.md).
+
+### 4. Connect your own AI account
+
+Choose your AI provider in Product Studio and follow its official sign-in steps if needed. Claude requires an account that supports Claude Code.
+
+Your subscription's access and usage limits apply. No separate API key, web hosting or Microsoft Office installation is needed.
 
 ## Launch next time
 
-Ask the same local assistant:
+On the same computer, open the AI assistant you used for installation and send:
 
 > Launch Product Studio.
 
-In Codex or Claude Code you can also invoke the installed **product-studio** skill. Start a new chat if the assistant has not loaded the newly installed skill yet. It starts the local server in the background and opens your browser automatically. If the app is already running, it reuses that instance.
+It starts the app and opens it in your browser. If Product Studio is already running, it opens the existing instance.
 
-Choose ChatGPT or Claude in the app and complete the provider's official sign-in if needed. Your subscription access and usage limits apply; Product Studio never asks for your password or copies provider tokens. Claude requires an eligible Claude Code account. No hosted backend, shared AI account, or API key is required.
+**You only need to install once.**
+
+If the assistant does not recognize the launch instruction, start a new chat and ask again. For more help, resend the installation message and ask it to check your existing installation while preserving your projects.
 
 ## Create together
 
@@ -146,12 +156,85 @@ Choose your provider, model and quality in the app. The app checks that exact se
 
 Your subscription access and usage limits apply, including the small model-access check. Claude requires an eligible Claude Code account; live Claude generation remains unverified in this beta. See [TESTED.md](TESTED.md) for model checks and current limitations.
 
+## Presentation design
+
+Choose a visual direction that fits your topic and audience:
+
+| Direction | What it feels like |
+| --- | --- |
+| **Quiet editorial** | Expressive headings, fine illustrations and an open, thoughtful layout. |
+| **Signal studio** | Bold headlines, strong contrast and clear information graphics. |
+| **Warm dimension** | Rounded typography, tactile imagery and an inviting workshop feel. |
+
+Choose **one** direction, then review **three sample slides in Canva** before building the rest.
+
+- Each slide gets its own purpose, graphic and composition.
+- New slides use fewer than 15 visible words, with full explanations in presenter notes.
+- Every slide keeps at least 40% empty space.
+- Feedback can improve one illustration while preserving the others.
+
+Artwork is created through your connected Canva account using ChatGPT/Codex. Unchanged artwork is reused. Planned artwork runs automatically after your choice or feedback; an optional manual setting asks before each image.
+
+Small app previews are separate from the original artwork used in the editable Canva presentation. If artwork or presenter notes cannot be completed and checked, the app explains what is unfinished.
+
+The design guidance draws on licensed Anthropic skills for typography, composition and consistent styling. Your preferences and approved sample guide the result. See [design credits and licenses](THIRD_PARTY_NOTICES.md).
+
 ## Manual start, if wanted
 
-Extract the source ZIP into a new folder. With Node.js 22+ installed, run **Start.cmd** on Windows or **Start.command** on Mac (`bash Start.command` if Finder will not execute it). First launch installs dependencies. You can also run `npm ci`, `node scripts/setup.js`, then `npm start`.
+The AI-assisted installation above is the easiest way to get started. If you prefer to open the app yourself:
+
+<details>
+<summary>Show manual setup steps</summary>
+
+1. Install [Node.js](https://nodejs.org/) version **22 or newer**. This is the software Product Studio needs to run.
+2. On this GitHub page, select **Code → Download ZIP**.
+3. Extract the ZIP into a new folder.
+4. Open the launcher for your computer:
+
+| Computer | File to open |
+| --- | --- |
+| Windows | **Start.cmd** |
+| Mac | **Start.command** |
+
+The first launch installs the required software. Keep the launcher window open while using the app when starting this way.
+
+If a launcher does not open or setup fails, ask your local AI assistant to help with the message shown. Actual Mac startup still needs testing in this beta.
+
+For assistants or users who prefer commands, run these from the extracted app folder:
+
+```sh
+npm ci
+node scripts/setup.js
+npm start
+```
+
+</details>
 
 ## Your data
 
-Projects are autosaved to a private local project library on this computer. Save project updates that library; Open project restores work even when the local port changes. Browser state and personal preferences remain local, without automatic device sync. Only Download a backup deliberately downloads a portable JSON file. Your messages and relevant approved preferences go to the provider you select for processing. Generated downloads are held temporarily in local memory and can be regenerated from your draft. No credentials, private interviews, or generated customer files belong in this repository.
+- **Projects stay on your computer.** Autosave and Save project update your private local library. Work does not automatically sync between computers.
+- **Backups are optional.** Download a backup creates a portable JSON file when you choose it.
+- **Your selected AI processes your messages.** Relevant approved preferences are included to help personalize its replies.
+- **Google and Canva files use your connected accounts.** Open their verified links to review or edit them.
+- **Your private material stays out of this repository.** Do not upload credentials, private interviews, project backups or customer files to GitHub.
 
-This project is separate from KKY. See [TESTED.md](TESTED.md) for actual checks and unverified items, including other people's installations, Mac execution and live Claude. Native Google Docs/Sheets have real acceptance evidence; controlled producer tests are identified separately from live file tests.
+Temporary PDF/text downloads can be regenerated from the saved draft when needed. Browser settings and preferences remain local.
+
+## Beta 0.3.21
+
+This version is for a small test group.
+
+| Area | Current status |
+| --- | --- |
+| Windows with ChatGPT/Codex | Tested |
+| Mac startup | Still needs testing |
+| Live Claude generation | Still needs testing |
+| Creating files in Canva, Google Docs and Google Sheets | Currently uses ChatGPT/Codex and your connected accounts |
+
+Claude does not currently create files directly in Canva or Google Workspace through this app. PDF/text output is the local alternative.
+
+Useful links:
+
+- [First test walkthrough](TESTER-START.md)
+- [Installation instructions for your AI assistant](INSTALL.md)
+- [What has been tested and what remains unverified](TESTED.md)
