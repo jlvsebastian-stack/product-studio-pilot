@@ -1,5 +1,13 @@
 # Local beta evidence
 
+## Canva personalization — 4 November 2026
+
+A real three-slide Canva sample used Barlow Condensed headings, DM Sans labels, a pale-blue background (#F5FAFF), navy text (#12304A) and green illustration accents. Canva's actual font controls and rendered text confirmed both font families and navy color; all three native preview backgrounds matched the requested RGB values. The saved presentation retained separately editable text, three distinct original Canva media assets and full per-slide presenter notes, including the original source wording. One illustration was refined to remove stray captions while preserving the other two images, source and notes. The final editable slides contain 6, 7 and 6 words and retain at least40% empty space.
+
+The test found that Canva substituted Arimo for Manrope, and its font picker had no Manrope result. New native plans now use DM Serif Display, DM Sans or Barlow Condensed; new Warm plans resolve to DM Sans. New imports with an unsupported saved font stop before the Canva session/import. Existing local styles, files and artwork are retained, and read-only recovery remains available. The transfer also embeds the actual selected font bytes instead of only the template's defaults. No Office application or new dependency was added.
+
+Release checks:706/706 tests pass, zero skipped; independent review covered the repair and fixture corrections. The live test used approved fictional QA source, real generated artwork and a controlled font-only correction to its saved plan; it was not a fresh interview, independent tester journey, sales test or human aesthetic approval. An initial overlapping layout was held before artwork; the retry used built-in frames. One combined run exposed two incomplete test fixtures and a Windows denied-port attempt; fixtures were corrected without changing assertions and the final complete run passed. macOS and live Claude limits below remain unchanged.
+
 ## Beta 0.3.21 — 2 November 2026
 
 This is a downloadable local beta, separate from KKY. The latest summary below supersedes older capability descriptions in the dated historical entries that follow. Passing controlled tests does not establish live provider, visual, sales or another person's installation proof.

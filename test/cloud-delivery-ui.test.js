@@ -5,14 +5,15 @@ import vm from 'node:vm';
 import {freshProject} from '../public/studio-store.js';
 import {isPresentation} from '../public/design-concepts.js';
 import * as google from '../public/google-delivery.js';
+import {expandedOutlineSections,expandedOutlineCovered} from '../public/outline-plan.js';
 const version=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version;
 
 const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
 const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 function renderer(){
   const state=freshProject();state.interviewStage=12;state.brief.productDraft='Approved source';state.approvedDraft=state.brief.productDraft;state.reviewed=true;
-  const scope={...google,googleChecked:new Set(),URL,isPresentation,esc:escape,state,working:false,runtimeReady:true,previewKey:()=> 'current',renderExportPreview:()=>'',rich:escape};
-  vm.createContext(scope);
+  const scope={expandedOutlineSections,expandedOutlineCovered,...google,googleChecked:new Set(),URL,isPresentation,esc:escape,state,working:false,runtimeReady:true,previewKey:()=> 'current',renderExportPreview:()=>'',rich:escape};
+  vm.createContext(scope);vm.runInContext(source.slice(source.indexOf('function localCompleteNonpresentation('),source.indexOf('const nativeKey=')),scope);
   vm.runInContext(source.slice(source.indexOf('function nativeReviewInstructions('),source.indexOf('\nfunction renderDraft(')),scope);
   vm.runInContext(source.slice(source.indexOf('function links('),source.indexOf('\nfunction render(){')),scope);
   return scope;

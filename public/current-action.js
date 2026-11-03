@@ -1,6 +1,6 @@
 // One decision at a time; callers supply already-validated project and native state.
 export function currentAction(context){
-  const {runtime=true,connected=true,modelReady=true,working=false,stage=1,stageReady=false,plan={},sample={},draft={},nativeJob,slideJob,reviewed=false,filesView=false}=context;
+  const {runtime=true,runtimeError='',connected=true,modelReady=true,working=false,stage=1,stageReady=false,plan={},sample={},draft={},nativeJob,slideJob,reviewed=false,filesView=false}=context;
   const button=(id,label,disabled=false)=>({id,label,disabled});
   const result=(kind,title,detail,primary,secondary)=>({kind,title,detail,primary,secondary});
   if(nativeJob?.status==='approval'&&nativeJob.approval)return result('canva-approval',nativeJob.approval.title||'Review the Canva request',nativeJob.approval.message||nativeJob.message,button('approve-canva','Allow this action once',!runtime||nativeJob.resolving),button('decline-canva','Decline',!runtime||nativeJob.resolving));
@@ -8,7 +8,7 @@ export function currentAction(context){
   if(nativeJob&&['running','approval'].includes(nativeJob.status))return result('canva-progress','Preparing your Canva slides',nativeJob.message||'Your source and notes are being used. You can keep writing in the conversation.',button('view-design','View progress'));
   if(slideJob&&['planning','artwork'].includes(slideJob.status))return result('slide-progress','Preparing your illustrations',slideJob.message||'Your existing artwork is retained.',button('view-design','View progress'));
   if(working)return result('working','John Connor is working','You can keep typing while the current request finishes.');
-  if(!runtime)return result('runtime','Finish the app update','Restart the local app. Your saved project and unsent text are retained.');
+  if(!runtime)return runtimeError?result('runtime',/finish.*update/i.test(runtimeError)?'Finish the app update':'Reconnect to the local app',runtimeError):result('runtime-checking','Checking the local app','Your saved project and unsent text are retained.');
   if(!connected)return result('connect','Connect your AI account','Use your own existing subscription to continue.',button('connect','Open connection'));
   if(!modelReady)return result('model','Check the selected model','Your model and quality stay selected.',button('check-model','Check access'));
   if(nativeJob?.current&&['failed','unavailable'].includes(nativeJob.status)&&nativeJob.design?.url)return result('canva-recheck','Check your existing Canva draft',nativeJob.message||'Verify this draft without creating another design.',button('recheck-canva','Check existing draft'));

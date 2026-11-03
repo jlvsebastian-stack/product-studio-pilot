@@ -15,6 +15,13 @@ async function server(t, options={}) {
 }
 const post=(url,path,body)=>fetch(url+path,{method:'POST',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify(body)});
 
+test('presentation style validation is served to the browser without exposing server source',async t=>{
+  const url=await server(t,{providers:{status(){throw Error('No account calls');}}});
+  const response=await fetch(url+'/presentation-style.js');assert.equal(response.status,200);
+  assert.match(response.headers.get('content-type'),/javascript/);assert.match(await response.text(),/cleanPresentationStyle/);
+  assert.equal((await fetch(url+'/src/slide-production.js')).status,404);
+});
+
 test('verified native sample readiness reaches the interview gate while unverified client IDs do not',async t=>{
   const draft='## Choose One Action\n\nChoose the website goal.\n\n### Presenter notes\nExplain the initial choice.';
   const next='\n\n## Compare The Options\n\nCompare three destinations.\n\n### Presenter notes\nExplain the differences.';

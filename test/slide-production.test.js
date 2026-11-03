@@ -10,7 +10,7 @@ import {createHash} from 'node:crypto';
 import {freshProject} from '../src/product.js';
 import {fullSourceFingerprint,DESIGN_CONCEPTS,renderConceptSlides} from '../public/design-concepts.js';
 import {MAX_SLIDE_WORDS,SLIDE_POLICY_VERSION,slideWordCount} from '../public/slide-policy.js';
-import {createSlideProduction,bindSlidePlans,representativeSources,artworkAspectRatio,ARTWORK_USER_INTENT} from '../src/slide-production.js';
+import {createSlideProduction,bindSlidePlans,representativeSources,artworkAspectRatio,ARTWORK_USER_INTENT,slidePlanJsonSchema} from '../src/slide-production.js';
 import {createSlideAssetStore,canvaImageUrl,imageDimensions,imageCandidate} from '../src/slide-art-assets.js';
 
 const brief={...freshProject().brief,title:'A usable handoff',format:'Webinar',productDraft:'## Ask about the task\n\nAsk the recipient which file they need to change this week. Keep their answer visible.\n\n### Presenter notes\n\nOriginal ALPHA: demonstrate the recipient’s real task.\n\n## Check the package\n\nOpen the approved file, make one intended change and record the remaining question.\n\n### Presenter notes\n\nOriginal BRAVO: an attachment sent is not a usability check.'};
@@ -22,6 +22,37 @@ function proposed(sources,ids=['editorial','studio','warm'],{sample=false}={}){
   return {concepts:ids.map(conceptId=>({conceptId,slides:pages.map((source,index)=>({sourceId:source.id,purpose:`Teach the recipient a concrete task from a distinct perspective, view ${index+1}.`,headline:source.title,onSlideText:['Choose the next useful action.'],visualMode:'process',visualAnchors:[{source:source.audience.split(' ').slice(0,3).join(' '),depiction:'Show the specific recipient action in a recognizable teaching scene.'},{source:source.audience.split(' ').slice(-3).join(' '),depiction:'Connect the visible action to this exact requested result.'}],composition:{layout:index%2?'image-left':'image-right',emptySpaceMin:.4,headline:null,copy:null,image:null},artworkPrompt:`Create one original ${conceptId} artwork for ${source.title}: explain the distinct source-specific task and its result with recognizable objects and relationships, restrained materials, a clear focal point and generous quiet space. No embedded text or portraits. This is visual ${source.id}, teaching view ${index+1}.`}))}))};
 }
 function requestOf(prompt){return {sources:JSON.parse(prompt.split('Approved source sections: ')[1]),ids:JSON.parse(prompt.match(/requested concept ID (\[[^\n]+?\])/)[1]),sample:prompt.includes('Sample request: EXACTLY3')};}
+test('resolved personal style is validated, saved and locked during approved deck expansion',async t=>{
+  const fixture=await setup(t),style={headingFont:'Barlow Condensed',bodyFont:'DM Sans',background:'#F5FAFF',ink:'#12304A',accent:'#26734D',secondary:'#C6E4D1'},raw={...payload(),brief:{...brief,design:'Use Barlow Condensed titles, pale blue with navy text and forest green accents.'}},prompts=[];
+  fixture.providers.infer=async(_id,prompt,schema)=>{prompts.push(prompt);const request=requestOf(prompt),value=proposed(request.sources,request.ids,{sample:request.sample});value.concepts[0].visualSystem=style;assert.ok(schema.properties.concepts.items.required.includes('visualSystem'));return value;};
+  const first=await finish(fixture.manager,(await fixture.manager.start(raw)).id);assert.equal(first.status,'ready');assert.deepEqual(first.concepts[0].visualSystem,style);
+  assert.match(prompts[0],/Honor the creator's explicit font and palette preferences/);
+  const original=structuredClone(first.concepts[0].slides),expanded={...raw.brief,productDraft:raw.brief.productDraft+'\n\n## Send The Package\n\nSend the checked file with the recipient’s next action. Ask them to confirm the open question.'};
+  const deck=await finish(fixture.manager,(await fixture.manager.start({...raw,brief:expanded,mode:'deck',approved:true,productionId:first.id})).id);
+  assert.equal(deck.status,'ready',deck.message);assert.deepEqual(deck.concepts[0].visualSystem,style);assert.deepEqual(deck.concepts[0].slides.slice(0,3),original);
+  assert.match(prompts[1],/existing sample style is locked/);
+  const restored=createSlideProduction({providers:fixture.providers,directory:fixture.directory,createSession:fixture.createSession,loadSkills:async()=>skills,fetchFn:fixture.fetchFn});
+  assert.deepEqual((await restored.status(deck.id)).concepts[0].visualSystem,style);
+  const invalid=proposed(representativeSources(brief),['warm'],{sample:true});invalid.concepts[0].visualSystem={...style,ink:style.background};assert.throws(()=>bindSlidePlans(invalid,representativeSources(brief),['warm'],{sample:true}),/contrast/);
+});
+test('new native plans use Canva-supported fonts and warm defaults resolve to DM Sans',async t=>{
+  const fontFields=slidePlanJsonSchema.properties.concepts.items.properties.visualSystem.properties;
+  assert.deepEqual(fontFields.headingFont.enum,['DM Serif Display','DM Sans','Barlow Condensed']);assert.deepEqual(fontFields.bodyFont.enum,fontFields.headingFont.enum);
+  const fixture=await setup(t),infer=fixture.providers.infer;let promptSeen='';
+  fixture.providers.infer=async(...args)=>{promptSeen=args[1];return infer(...args);};
+  const result=await finish(fixture.manager,(await fixture.manager.start(payload())).id);assert.equal(result.status,'ready',result.message);assert.equal(result.concepts[0].visualSystem.headingFont,'DM Sans');assert.equal(result.concepts[0].visualSystem.bodyFont,'DM Sans');assert.match(promptSeen,/Canva-supported fonts DM Serif Display, DM Sans, Barlow Condensed/);assert.match(promptSeen,/"headingFont":"DM Sans"/);
+  assert.equal(DESIGN_CONCEPTS.find(concept=>concept.id==='warm').visualSystem.headingFont,'Manrope','legacy/local template defaults stay intact');
+  const invalid=proposed(representativeSources(brief),['warm'],{sample:true});invalid.concepts[0].visualSystem={headingFont:'Manrope',bodyFont:'DM Sans',background:'#FFFFFF',ink:'#000000',accent:'#2855D9',secondary:'#F2B28E'};
+  assert.throws(()=>bindSlidePlans(invalid,representativeSources(brief),['warm'],{sample:true}),/headingFont/);
+});
+test('legacy saved Manrope styles stay readable and are never silently restyled for expansion',async t=>{
+  const fixture=await setup(t),first=await finish(fixture.manager,(await fixture.manager.start(payload())).id),path=join(fixture.directory,'productions',first.id+'.json'),saved=JSON.parse(await readFile(path,'utf8'));
+  saved.concepts[0].visualSystem={...saved.concepts[0].visualSystem,headingFont:'Manrope'};await writeFile(path,JSON.stringify(saved));
+  let planned=0;const restored=createSlideProduction({providers:{...fixture.providers,infer:async()=>{planned++;throw Error('A legacy style must not be replanned silently.');}},directory:fixture.directory,createSession:fixture.createSession,loadSkills:async()=>skills,fetchFn:fixture.fetchFn});
+  assert.equal((await restored.status(first.id)).concepts[0].visualSystem.headingFont,'Manrope');assert.match(renderConceptSlides(brief,'warm',{production:(await restored.resolve(first.id,brief,'warm')).production})[0].svg,/font-family="Manrope"/);
+  const expanded={...brief,productDraft:brief.productDraft+'\n\n## Send The Package\n\nSend the checked file with the recipient’s next action. Ask them to confirm the open question.'},held=await finish(restored,(await restored.start({...payload(),brief:expanded,mode:'deck',approved:true,productionId:first.id})).id);
+  assert.equal(held.status,'unavailable');assert.match(held.message,/existing sample fonts and artwork are preserved/);assert.equal(planned,0);assert.equal((await restored.status(first.id)).concepts[0].visualSystem.headingFont,'Manrope');assert.equal(await readFile(path,'utf8'),JSON.stringify(saved));
+});
 function geometryFaults(value){value.concepts[0].slides[0].composition={layout:'image-right',emptySpaceMin:.4,headline:{x:80,y:100,width:500,height:50,fontSize:80},copy:{x:80,y:170,width:500,height:25,fontSize:50},image:{x:700,y:200,width:500,height:350}};const second=value.concepts[1]?.slides[0]||value.concepts[0].slides[1];second.composition.headline={x:80,y:680,width:1100,height:20,fontSize:80};return value;}
 function png(color,{square=false}={}){
   const crc=bytes=>{let value=0xffffffff;for(const byte of bytes){value^=byte;for(let i=0;i<8;i++)value=value&1?(value>>>1)^0xedb88320:value>>>1;}return (value^0xffffffff)>>>0;};

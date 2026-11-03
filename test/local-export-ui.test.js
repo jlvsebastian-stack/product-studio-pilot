@@ -153,3 +153,19 @@ test('auth/model rejection,409,unconfirmed termination and changed or never-conf
   const changed=await failedInterview(Object.assign(Error('Connection could not finish. [runtime]'),{status:400}),{changeSelection:true});assert.equal(changed.scope.canUseModel(),false);await changed.scope.send('',false,{retry:true});assert.equal(changed.requests.length,1);assert.equal(changed.scope.selectedModel,'gpt-6-astra','A later explicit choice must not be reset');
   const unconfirmed=await failedInterview(Object.assign(Error('Connection could not finish. [runtime]'),{status:400}),{confirmed:false});assert.equal(unconfirmed.scope.canUseModel(),false);assert.equal(unconfirmed.requests.length,0);assert.equal(unconfirmed.checks(),0);assert.equal(unconfirmed.state.retryRequest,null);
 });
+
+test('the bundled finished example has a current full plan and exports through normal review controls',async()=>{
+  const demo=JSON.parse(await readFile(new URL('../public/example-project.json',import.meta.url),'utf8'));
+  const {scope,state,nodes,requests}=controller('Field guide and worksheet');Object.assign(state,store.importProject({projects:[],activeId:null},demo));scope.accountReady=false;
+  assert.equal(outline.expandedOutlineApprovalCurrent(state),true);assert.equal(outline.expandedOutlineCovered(state),true);
+  scope.render();assert.equal(scope.currentActionState().primary.id,'view-files');await nodes['files-tab'].click();
+  assert.equal(nodes['export-product'].disabled,true);nodes.reviewed.checked=true;nodes.reviewed.onchange({target:nodes.reviewed});
+  assert.equal(nodes['export-product'].disabled,false);await nodes['export-product'].click();assert.equal(requests.length,1);assert.equal(requests[0].body.brief.productDraft,demo.brief.productDraft);assert.equal(requests[0].body.reviewed,true);
+});
+
+test('optional export controls stay disabled for stale or incomplete written plans after checking review',async()=>{
+  for(const change of [state=>{state.approvedExpandedOutline='';},state=>{state.expandedOutline+='\nUnapproved change';},state=>{state.brief.productDraft=state.brief.productDraft.split('## '+headings[1])[0];state.approvedDraft=state.brief.productDraft;}]){
+    const {scope,state,nodes,requests}=controller();change(state);scope.view='files';scope.render();
+    assert.equal(nodes['export-product'].disabled,true);nodes.reviewed.checked=true;nodes.reviewed.onchange({target:nodes.reviewed});assert.equal(nodes['export-product'].disabled,true);await nodes['export-product'].click();assert.equal(requests.length,0);
+  }
+});

@@ -14,6 +14,8 @@ Reuse the compact Design Direction in product-page-design and the creator’s ch
 
 Reuse the known audience, approved content and preferences. Do not start another questionnaire. Each rendered slide needs its own stable source ID, teaching purpose, core message, visual idea, artwork prompt, composition, editable headline/anchors and presenter notes. Pick the visual because it explains this slide's message. Keep the canonical manuscript and source notes unchanged.
 
+Resolve the creator's palette and type preferences into the concept's saved visualSystem during this existing planning turn. New native Canva plans use DM Serif Display, DM Sans or Barlow Condensed, six-digit hex color roles and readable ink/background contrast. The verified Canva import substitutes Manrope, so new Warm plans use DM Sans; Manrope stays available for legacy/local records. Apply the same resolved palette to artwork and editable Canva text. Preserve the approved sample's exact fonts and colors when expanding or refining; hold unsupported native creation rather than silently restyling saved designs.
+
 ## Less text
 
 Use at most 14 total visible words, counting the title and every label. A short title plus two or three labels is usually enough. Put explanations, qualifications, demonstrations, examples and transitions in native presenter notes. Retain the full original audience wording alongside the original notes in the private production/source record and notes, so concise slides do not erase knowledge. Do not silently remove exceptions or invent a simpler claim. Tables may need concise labels or more than one deliberate slide rather than smaller type.

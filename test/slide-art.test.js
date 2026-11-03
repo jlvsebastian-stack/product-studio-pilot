@@ -7,6 +7,25 @@ const brief={title:'Choose your website’s job',format:'Webinar presentation',o
 function production(conceptId='editorial'){const sections=readConceptSections(brief),selected=[sections[0],sections[0],sections[1]],index=['editorial','studio','warm'].indexOf(conceptId);return {id:'actual-job',policyVersion:3,status:'ready',mode:'concepts',conceptId,message:'Three samples ready for review.',sourceFingerprint:fullSourceFingerprint(brief,''),complete:true,remainingSourceIds:[],concepts:[{conceptId,slides:selected.map((section,at)=>({id:conceptId+'-'+at,sourceId:section.id,purpose:['Choose a primary action.','Build only essential features.','Compare the primary actions.'][at],headline:at?'Three Journeys. One Guide.':'Choose Your Website’s Job',onSlideText:at?['Ask','Join','Pay → Access']:['Awareness','Lead Capture','Direct Sales'],notes:'Proposed delivery cue.',sourceAudience:section.audience,originalNotes:section.notes,visualAnchors:[{source:section.audience.slice(0,30),depiction:'A source-specific visitor action.'},{source:section.notes,depiction:'The exact intended completion check.'}],visualMode:at?'restrained comparison':'source-specific illustration',visualIdea:at?'Three independent endpoints for the same guide.':'A purposeful choice of visitor action.',composition:{layout:['image-left','comparison','image-top','process','statement','image-right'][(index*2+at)%6],emptySpaceMin:.4},artworkPrompt:`${conceptId}: page ${at}, a source-specific illustration; no text, no people.`,artwork:{id:conceptId+'-art-'+at,url:'/slide-assets/'+conceptId+'-art-'+at,mimeType:'image/png',width:1536,height:1024}}))}]};}
 
 const memory=()=>{const values=new Map();return {getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};};
+const personalStyle={headingFont:'Manrope',bodyFont:'DM Sans',background:'#F5FAFF',ink:'#12304A',accent:'#26734D',secondary:'#C6E4D1'};
+test('personal presentation fonts and palette reach editable transfer and survive Save/Open',()=>{
+  const planned=production();planned.concepts[0].visualSystem=personalStyle;
+  const studio=loadStudio(memory()),project=studio.projects[0];Object.assign(project.brief,brief);project.slideProduction=planned;
+  const storage=memory();persistStudio(storage,studio);const restored=loadStudio(storage).projects[0];
+  assert.deepEqual(restored.slideProduction.concepts[0].visualSystem,personalStyle);
+  const images=Object.fromEntries(planned.concepts[0].slides.map(slide=>[slide.artwork.id,'data:image/png;base64,aGVsbG8=']));
+  const output=renderCanvaTransfer({brief,conceptId:'editorial',production:restored.slideProduction,assetData:{images}});
+  assert.match(output.html,/font-family:'Manrope'/);assert.match(output.html,/color:#12304A/);assert.match(output.html,/fill="#F5FAFF"/);
+  assert.equal(output.pages.length,3);assert.ok(output.pages.every(page=>slideWordCount(page.visibleText)<=14));
+  assert.deepEqual(output.pages.map(page=>page.artwork.id),planned.concepts[0].slides.map(slide=>slide.artwork.id));
+  assert.ok(output.pages.every(page=>page.notes.includes('Original presenter notes')));
+});
+test('invalid or unreadable presentation styles are held rather than silently replaced',()=>{
+  for(const change of [{headingFont:'Unbundled Font'},{background:'red'},{ink:'#F5FAFF'},{accent:'url(javascript:bad)'},{extra:'untrusted'}]){
+    const planned=production();planned.concepts[0].visualSystem={...personalStyle,...change};
+    assert.equal(cleanSlideProduction(planned),null);assert.throws(()=>renderConceptSlides(brief,'editorial',{production:planned}));
+  }
+});
 test('fifteen words, sentence-case titles and generic ungrounded visual plans cannot be approved',()=>{
   for(const mutate of [value=>value.concepts[0].slides[0].onSlideText=['one two three four five six seven eight nine ten eleven'],value=>value.concepts[0].slides[0].headline='Choose your website’s job',value=>value.concepts[0].slides[0].visualAnchors=[{source:'invented source claim',depiction:'A generic object'}],value=>value.policyVersion=1]){
     const planned=production();mutate(planned);assert.throws(()=>renderConceptSlides(brief,'editorial',{production:planned}));

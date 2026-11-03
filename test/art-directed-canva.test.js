@@ -34,10 +34,49 @@ function manager(planned=production()){let resolved=0;return {resolve:async(id,c
 test('actual illustrated Canva readiness retains the original production and all three source-bound MEDIA identities',async()=>{
   const planned=production(),before=structuredClone(planned),art=manager(planned),native=nativeSession(),producer=createCanvaProducer({providers,slideProduction:art,createSession:native.createSession,fetchFn:async()=>new Response(preview,{headers:{'content-type':'image/png'}})});
   const result=await done(producer,(await producer.start(payload())).id);assert.equal(result.status,'ready',result.message);assert.equal(result.productionId,planned.id);assert.equal(result.verification.originalArtworkVerified,true);assert.equal(result.artworkBinding.length,3);assert.deepEqual(result.artworkBinding.map(item=>item.canvaMediaId),planned.concepts[0].slides.map(slide=>slide.artwork.canvaMediaId));assert.equal(await producer.sampleReady(result.id,brief,'editorial'),true);assert.deepEqual(planned,before);assert.equal(native.imports,1);assert.equal(art.resolved,1);assert.equal(native.responses.length,9);assert.match(native.html,/data-artwork-id="art-2"/);assert.doesNotMatch(native.html,/data-native-relationship/);
+  for(const [family,file]of [['DM Serif Display','DMSerifDisplay'],['DM Sans','DMSans']])assert.ok(native.html.includes("font-family:'"+family+"';src:url('data:font/ttf;base64,"+(await readFile(new URL('../public/assets/fonts/'+file+'.ttf',import.meta.url))).toString('base64')+"')"));
 });
 
 test('missing final artwork never falls back to an icon planner or another design',async()=>{
   let inferred=0,launched=0;const producer=createCanvaProducer({providers:{...providers,infer:async()=>{inferred++;throw Error('No icon fallback');}},slideProduction:manager(),createSession:()=>{launched++;throw Error('No import without actual artwork');}});const raw=payload();delete raw.productionId;const result=await producer.start(raw);assert.equal(result.status,'unavailable');assert.equal(inferred,0);assert.equal(launched,0);
+});
+
+test('Canva transfer embeds the resolved heading and body fonts with source and artwork intact',async()=>{
+  for(const [headingFont,bodyFont]of [['DM Sans','Barlow Condensed'],['DM Sans','DM Serif Display']]){
+    const planned=production(),style={...design.DESIGN_CONCEPTS[0].visualSystem,headingFont,bodyFont};delete style.composition;delete style.imagery;planned.concepts[0].visualSystem=style;
+    const before=structuredClone(planned),native=nativeSession(),producer=createCanvaProducer({providers,slideProduction:manager(planned),createSession:native.createSession,fetchFn:async()=>new Response(preview,{headers:{'content-type':'image/png'}})});
+    const result=await done(producer,(await producer.start(payload())).id);assert.equal(result.status,'ready',result.message);
+    for(const family of [headingFont,bodyFont]){
+      const file=family.replaceAll(' ',''),bytes=await readFile(new URL('../public/assets/fonts/'+file+'.ttf',import.meta.url));
+      assert.ok(native.html.includes("font-family:'"+family+"';src:url('data:font/ttf;base64,"+bytes.toString('base64')+"')"),'resolved '+family+' must be embedded, not a localhost font URL');
+      assert.ok(native.html.includes("white-space:pre;font-family:'"+family+"'"),'editable text uses '+family);
+    }
+    assert.deepEqual(planned,before);assert.equal(native.imports,1);assert.equal(result.artworkBinding.length,3);
+    for(const [index,page]of native.pages.entries()){assert.ok(page.notes.includes(planned.concepts[0].slides[index].sourceAudience));assert.ok(page.notes.includes(planned.concepts[0].slides[index].originalNotes));}
+  }
+});
+
+test('new Canva imports hold saved Manrope styles without changing their artwork or source',async()=>{
+  for(const role of ['headingFont','bodyFont']){
+    const planned=production();planned.concepts[0].visualSystem={headingFont:'DM Serif Display',bodyFont:'DM Sans',background:'#FFFFFF',ink:'#000000',accent:'#C9422F',secondary:'#E7DFCE',[role]:'Manrope'};
+    const before=structuredClone(planned);let launched=0;const producer=createCanvaProducer({providers,slideProduction:manager(planned),createSession:()=>{launched++;throw Error('Unsupported native fonts cannot authorize import.');}});
+    const held=await done(producer,(await producer.start(payload())).id);assert.equal(held.status,'unavailable');assert.match(held.message,/Choose.*DM Serif Display.*DM Sans.*Barlow Condensed/);assert.match(held.message,/Manrope/);assert.equal(launched,0);assert.deepEqual(planned,before);assert.equal(design.renderConceptSlides(brief,'editorial',{production:planned}).length,3,'legacy/local styles remain renderable');
+  }
+});
+
+test('read-only recovery of an existing Manrope draft remains available without another import',async()=>{
+  const planned=production(),native=nativeSession(),producer=createCanvaProducer({providers,slideProduction:manager(planned),createSession:native.createSession,fetchFn:async()=>new Response(preview,{headers:{'content-type':'image/png'}})});
+  const first=await done(producer,(await producer.start(payload())).id);assert.equal(first.status,'ready',first.message);
+  planned.concepts[0].visualSystem={headingFont:'Manrope',bodyFont:'DM Sans',background:'#FFFFFF',ink:'#000000',accent:'#C9422F',secondary:'#E7DFCE'};
+  const before=structuredClone(planned),checked=await done(producer,(await producer.recheck({...payload(),designId:first.design.id})).id);
+  assert.equal(checked.status,'ready',checked.message);assert.equal(checked.design.id,first.design.id);assert.equal(checked.verification.receipt,'existing-design-readback');assert.equal(native.imports,1);assert.deepEqual(planned,before);
+});
+
+test('invalid personalized fonts stop before any Canva session or import',async()=>{
+  let launched=0;
+  const planned=production();planned.concepts[0].visualSystem={headingFont:'../../private',bodyFont:'DM Sans',background:'#FFFFFF',ink:'#000000',accent:'#C9422F',secondary:'#E7DFCE'};
+  const before=structuredClone(planned),producer=createCanvaProducer({providers,slideProduction:manager(planned),createSession:()=>{launched++;throw Error('Invalid fonts cannot authorize native creation.');}});
+  const result=await done(producer,(await producer.start(payload())).id);assert.equal(result.status,'unavailable');assert.match(result.message,/visual plans and artwork/);assert.equal(launched,0);assert.deepEqual(planned,before);
 });
 
 test('explicit three-row image semantics align editable labels with the same artwork rows without changing the saved plan',()=>{

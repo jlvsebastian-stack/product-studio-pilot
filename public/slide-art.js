@@ -1,3 +1,4 @@
+import {cleanPresentationStyle} from './presentation-style.js';
 import {MAX_SLIDE_WORDS,SLIDE_POLICY_VERSION,slideWordCount,isTitleCase} from './slide-policy.js';
 export {slideWordCount} from './slide-policy.js';
 const ids=['editorial','studio','warm'];
@@ -29,7 +30,7 @@ export function productionStyleCurrent(production,brief){return production?.styl
 export function cleanSlideProduction(value){
   if(!value||!statuses.includes(value.status)||typeof value.id!=='string'||value.id.length>150||!/^canva-v1-[a-f0-9]{8}$/.test(value.sourceFingerprint||''))return null;
   if(value.style!==undefined&&(!value.style||typeof value.style.design!=='string'||typeof value.style.tone!=='string'))return null;
-  const concepts=[];for(const concept of Array.isArray(value.concepts)?value.concepts.slice(0,3):[]){if(!ids.includes(concept?.conceptId)||!Array.isArray(concept.slides)||concept.slides.length>150)return null;const slides=concept.slides.map(cleanPlan);if(slides.some(slide=>!slide))return null;concepts.push({conceptId:concept.conceptId,slides});}
+  const concepts=[];for(const concept of Array.isArray(value.concepts)?value.concepts.slice(0,3):[]){if(!ids.includes(concept?.conceptId)||!Array.isArray(concept.slides)||concept.slides.length>150)return null;const slides=concept.slides.map(cleanPlan);if(slides.some(slide=>!slide))return null;const visualSystem=concept.visualSystem===undefined?undefined:cleanPresentationStyle(concept.visualSystem);if(concept.visualSystem!==undefined&&!visualSystem)return null;concepts.push({conceptId:concept.conceptId,slides,...visualSystem?{visualSystem}:{}});}
   const result={id:value.id,policyVersion:[1,2,3].includes(value.policyVersion)?value.policyVersion:1,status:value.status,mode:value.mode==='deck'?'deck':'concepts',message:text(value.message,1500),sourceFingerprint:value.sourceFingerprint,complete:value.complete===true,remainingSourceIds:Array.isArray(value.remainingSourceIds)?value.remainingSourceIds.filter(id=>typeof id==='string').slice(0,150):[],concepts};
   if(ids.includes(value.conceptId))result.conceptId=value.conceptId;
   if(value.style!==undefined)result.style={design:value.style.design,tone:value.style.tone};
@@ -48,7 +49,7 @@ export function assertProductionPlans({production,sections,conceptId,fingerprint
     }
   }
   const selected=result.concepts.find(concept=>concept.conceptId===conceptId);if(!selected)throw Error('Prepare this art direction before reviewing its slides.');
-  if(result.complete&&result.mode==='deck'&&result.remainingSourceIds.length)throw Error('A partial batch cannot be presented as the complete deck.');return {production:result,slides:selected.slides};
+  if(result.complete&&result.mode==='deck'&&result.remainingSourceIds.length)throw Error('A partial batch cannot be presented as the complete deck.');return {production:result,slides:selected.slides,visualSystem:selected.visualSystem};
 }
 
 const frames={
@@ -66,6 +67,7 @@ function fullNotes(plan,section){let result=plan.notes.trim();if(!result.include
 export function renderArtPages({brief,concept,sections,production,fingerprint,assetData={},allowSourceAppend=false,requireEmbedded=false},{type,svgPage,rule}){
   if(!productionStyleCurrent(production,brief))throw Error('Your design style or tone changed. Prepare fresh visuals for this direction before reviewing or reusing the artwork.');
   const checked=assertProductionPlans({production,sections,conceptId:concept.id,fingerprint,allowSourceAppend});
+  concept={...concept,visualSystem:{...concept.visualSystem,...checked.visualSystem}};
   // Authored boxes use top-left coordinates; SVG text and built-in defaults use baselines.
   return checked.slides.map(plan=>{const section=sections.find(section=>section.id===plan.sourceId),s=concept.visualSystem,frame={...frames[plan.composition.layout],...plan.composition},headline={...frame.headline,y:frame.headline.y+(plan.composition.headline?frame.headline.fontSize*.83:0)},copy={...frame.copy,y:frame.copy.y+(plan.composition.copy?frame.copy.fontSize*.83:0)},image=containedImageFrame(frame.image,plan.artwork),heading=type(plan.headline,headline.x,headline.y,headline.width,headline.fontSize,s.headingFont,s.ink,concept.id==='editorial'?400:650,headline.fontSize*1.08);let body=heading.html.replace(/<text\b/g,'<text data-art-role="headline"'),regions=[];
     if(image.width*image.height<1280*720*MIN_ARTWORK_RATIO)throw Error('This artwork is too small to explain the slide. Recompose it as a substantial visual, not a floating thumbnail.');

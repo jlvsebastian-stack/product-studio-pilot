@@ -15,3 +15,12 @@ test('an actually approved written sample builds the remaining full draft direct
   for(const change of [{draft:{...written.draft,pending:true}},{draft:{...written.draft,sampleApproved:false}},{draft:{...written.draft,hasSource:false}},{plan:{...written.plan,expandedApproved:false}},{plan:{...written.plan,basicApproved:false}},{plan:{...written.plan,valid:false}},{plan:{...written.plan,covered:true,drafted:3}},{modelReady:false},{working:true}])assert.notEqual(currentAction({...written,...change}).primary?.id,'build-full-draft');
   assert.equal(currentAction({...written,sample:{presentation:true,choice:'editorial',current:true,approved:false}}).primary.id,'approve-native-samples');
 });
+
+test('startup checks stay pending until a real runtime error is known',()=>{
+  const pending=currentAction({...base,runtime:false});
+  assert.equal(pending.kind,'runtime-checking');assert.match(pending.title,/Checking/i);assert.doesNotMatch(pending.detail,/restart|update/i);
+  const outdated=currentAction({...base,runtime:false,runtimeError:'Restart the app to finish this update. Your project is retained.'});
+  assert.equal(outdated.title,'Finish the app update');
+  const offline=currentAction({...base,runtime:false,runtimeError:'The local app could not be reached. Reload it or launch it again.'});
+  assert.equal(offline.title,'Reconnect to the local app');assert.match(offline.detail,/could not be reached/);
+});

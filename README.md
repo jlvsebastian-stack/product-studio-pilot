@@ -169,9 +169,12 @@ Choose a visual direction that fits your topic and audience:
 Choose **one** direction, then review **three sample slides in Canva** before building the rest.
 
 - Each slide gets its own purpose, graphic and composition.
+- Tell John Connor your preferred colors and fonts before creating samples. The app applies them to the artwork and editable slide text, then keeps the approved style for the deck.
 - New slides use fewer than 15 visible words, with full explanations in presenter notes.
 - Every slide keeps at least 40% empty space.
 - Feedback can improve one illustration while preserving the others.
+
+For Canva, choose **DM Serif Display**, **DM Sans**, or **Barlow Condensed**. New Warm samples use DM Sans because Canva currently replaces Manrope.
 
 Artwork is created through your connected Canva account using ChatGPT/Codex. Unchanged artwork is reused. Planned artwork runs automatically after your choice or feedback; an optional manual setting asks before each image.
 

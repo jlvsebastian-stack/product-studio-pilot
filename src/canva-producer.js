@@ -8,6 +8,7 @@ import {createCanvaSession} from './canva-session.js';
 import {createOriginalArtwork,artworkReviewTool} from './canva-original-art.js';
 import {qualityReviewInstructions,parseQualityReview,groundedQualityReview} from './final-quality.js';
 import {qualityReviewKey} from '../public/quality-review.js';
+import {CANVA_PRESENTATION_FONTS,cleanPresentationStyle} from '../public/presentation-style.js';
 import {DESIGN_CONCEPTS,readConceptSections,fullSourceFingerprint,sourceFingerprint,nativeMetadataFingerprint,nativeSourceBindings,NATIVE_CANVA_POLICY_VERSION,artworkBindingOf,cleanArtworkBinding} from '../public/design-concepts.js';
 
 const ids=new Set(['editorial','studio','warm']);
@@ -89,7 +90,8 @@ export function verifyCanvaReadback(id,records,pages,{expectedTitle}={}){
 async function renderTransfer(brief,conceptId,resolved){
   const {renderCanvaTransfer}=await import('../public/design-concepts.js');
   const assetData={fonts:{}};
-  for(const font of conceptId==='editorial'?['DMSerifDisplay','DMSans']:conceptId==='studio'?['BarlowCondensed','DMSans']:['Manrope'])assetData.fonts[font]='data:font/ttf;base64,'+(await readFile(new URL(`../public/assets/fonts/${font}.ttf`,import.meta.url))).toString('base64');
+  const style=cleanPresentationStyle(resolved?.production?.concepts.find(concept=>concept.conceptId===conceptId)?.visualSystem)||DESIGN_CONCEPTS.find(concept=>concept.id===conceptId).visualSystem;
+  for(const font of new Set([style.headingFont,style.bodyFont].map(family=>family.replaceAll(' ',''))))assetData.fonts[font]='data:font/ttf;base64,'+(await readFile(new URL(`../public/assets/fonts/${font}.ttf`,import.meta.url))).toString('base64');
   if(resolved)assetData.images=resolved.images;
   else if(conceptId==='warm')assetData.warmIllustration='data:image/png;base64,'+(await readFile(new URL('../public/assets/warm-digital-products.png',import.meta.url))).toString('base64');
   return renderCanvaTransfer({brief,conceptId,production:resolved?.production,assetData});
@@ -148,6 +150,8 @@ export function createCanvaProducer({providers,slideProduction,renderer=renderTr
       const access=await providers.checkModel('chatgpt',job.selected);if(access?.available!==true)throw new Error(access?.message||'The selected ChatGPT model and quality could not be confirmed. Check this selection before creating a Canva sample.');
       let resolved=slideProduction&&job.productionId?await slideProduction.resolve(job.productionId,job.brief,job.concept.id):undefined;
       if(job.direct&&!resolved?.production)throw Error('This Canva sample requires the current saved artwork and visual plans. No icon or generic layout was substituted.');
+      const nativeStyle=cleanPresentationStyle(resolved?.production?.concepts.find(concept=>concept.conceptId===job.concept.id)?.visualSystem)||DESIGN_CONCEPTS.find(concept=>concept.id===job.concept.id).visualSystem;
+      if(!job.recoveryId&&[nativeStyle.headingFont,nativeStyle.bodyFont].some(font=>!CANVA_PRESENTATION_FONTS.includes(font)))throw Error(`Canva does not support Manrope for this draft. Choose ${CANVA_PRESENTATION_FONTS.join(', ')} before creating it. Your saved artwork, source and existing files are preserved.`);
       if(job.direct&&job.mode==='deck'){const covered=new Set(resolved.production.concepts.find(concept=>concept.conceptId===job.concept.id)?.slides.map(slide=>slide.sourceId)||[]);if(sourceUnits(job.brief).some(source=>!covered.has(source.id)))throw Error('Prepare the remaining selected slide artwork before creating the full Canva deck. The approved samples and their original artwork are retained.');}
       const rendered=await renderer(job.brief,job.concept.id,resolved);if(!rendered?.html||!Array.isArray(rendered.pages)||!rendered.pages.length)throw new Error('The selected concept did not provide a complete native sample.');
       if(job.direct&&job.mode==='samples'&&rendered.pages.length!==3)throw Error('A native sample must contain exactly three source-specific pages.');
