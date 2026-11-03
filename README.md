@@ -36,41 +36,115 @@ Choose ChatGPT or Claude in the app and complete the provider's official sign-in
 
 ## Create together
 
-The guided conversation discovers your expertise, narrows a buyer problem, checks comparable offers and shapes a useful product. Approve the basic outline, expanded plan and representative sample, then build the remaining full draft for one whole-product review. Shared skills supply the method; your answers supply the personalization. A workbook is one possible output. Aim for a focused first draft in about an hour; scope, provider speed and native-file creation can change the time needed.
+Bring what you know. Your AI creation partner helps turn it into a useful product for a specific audience, while you make the important decisions.
 
-The chosen format's final quality check runs during existing creation requests. It fixes obvious authorized defects while preserving approved work, then offers up to three grounded improvements and explains their buyer benefits. Suggestions do not create extra products or add an approval step.
+Keep the first product focused. Aim for a first draft in about an hour; the scope, AI response time and file creation can affect how long it takes.
 
-Approve the basic outline to generate an **expanded outline of the entire product**. Review its ordered sections, purposes, key points, examples and activities before approving it. After the sample design is approved, **Build full draft** completes the remaining agreed sections for one whole-product review. You can edit the plan; a changed plan needs approval again before new content is written. Earlier drafts and illustrations stay available. This applies to all formats, with slides and presenter notes planned together for webinars.
+### 1. Find a useful product idea
 
-Start with a useful baseline and build from it. Earlier answers are reused; detailed personal anecdotes, exact remembered wording, mistakes and exceptions are optional rather than a discovery checklist. The AI proposes the next direction or draft when enough is known. A necessary question briefly explains what its answer helps create in your lesson, section, outline or offer. Missing details are gathered when they matter to the current work, and unknown claims remain unknown. Sample and section approvals still protect your decisions and finished text.
+Start with something you know well or often help people do.
 
-You do not need a competitor list or research experience. The AI handles the initial comparison, explains relevant examples in plain language and helps you choose an angle. Unknown prices, reviews or demand remain unknown rather than blocking useful inspected product facts. If the lookup cannot finish, it explains the problem and a way to retry; it does not assign link-gathering homework. The chat partner is encouraging and practical, while your product keeps its own chosen voice.
+Together, you will:
 
-The interview stays inside the app. The conversation is on the left, with project progress, the brief, outline and current draft on the right. **Save project** retains the full interview; **Open project** resumes it. Exported-page previews are optional; the workspace shows what is being built and what needs the creator's next decision.
+- Choose a specific buyer and a problem worth solving.
+- Compare existing offers and find ways to improve yours.
+- Choose a format that suits the buyer: a guide, ebook, workbook, template kit, spreadsheet, presentation or course materials.
 
-Press **Enter** to send and **Shift+Enter** for a new line. Use the attachment control, paste or drag files into the composer, or include a public link. The app reads supported documents locally and supplies their extracted content or image input to the AI when you send. References stay with the project and are kept separate from personal preferences and sale files. Source facts are not automatically treated as the creator's own experience. Unavailable, scanned, partial or unsupported sources are labeled honestly.
+You do not need a competitor list or research experience. The AI handles the initial research, explains what it finds and keeps unverified claims clear. Existing offers help inform your direction; they do not guarantee sales.
 
-The current prototype accepts five project references, files up to 3 MiB each / 6 MiB per upload, and up to two PNG/JPEG images of 512 KiB each. It extracts at most 16,000 characters per source / 60,000 per project and labels incomplete excerpts. Supported document types are PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, TSV and JSON; public links supply readable page text. These are conservative limits in this app, not ChatGPT website or subscription limits. The local interview uses the official provider helper and does not inherit the website's upload system. Original document binaries are not retained; the project backup retains extracted text, source details and attached image inputs.
+### 2. Approve the plan and sample
 
-If a reply fails, choose an available model if necessary and use **Retry last message** to resend the retained original message and references. The app never silently changes provider or model.
+Review three things before the full draft is built:
 
-**New project** retains your previous project. Autosave and **Save project** update the private local project library on this computer; **Open project** lists those projects even when the local port changes. **Download a backup** is an optional portable JSON file for moving work to another computer. Normal saving creates no Downloads files.
+1. **Basic outline:** the main sections and their order.
+2. **Expanded outline:** the whole product, including each section's purpose, examples and activities.
+3. **Representative sample:** a real section or design that lets you check the approach early.
 
-**My preferences** remembers explicit voice, design and workflow instructions. Inferred preferences are offered for confirmation. You can edit, forget or pause learning. Preferences apply across your projects and selected providers inside this app; project-specific facts stay with their project. They are not automatically copied into the provider's account memory or included in product downloads.
+For presentations, choose one of the three visual directions first. Then review **three editable sample slides in Canva**, including their presenter notes, before approving the design.
 
-Choose a provider, a selected model and a quality setting in the app. The app automatically checks that exact combination through the official local helper before enabling Send or Retry. Successful checks stay quiet; only checking or an actionable problem is shown. Your choice is preserved instead of substituting another model. A recommendation is a starting choice, not proof of account access. The small connection check uses your normal subscription allowance; successful checks are reused briefly. Subscription usage limits still apply.
+You can request changes at these checkpoints. If you change the plan later, approve the updated plan before new content is written. Earlier drafts and artwork stay available.
 
-Both **GPT-6.1 Sol · High** and **GPT-6 Astra · Medium** have worked through the normal subscribed helper in this pilot. The app includes official Codex0.164.0; its earlier0.157.1 helper rejected Sol, and updating that helper resolved the rejection without changing the account or model. Your explicit model and quality selection always takes precedence over the starting recommendation. Claude choices require an eligible Claude Code account; live Claude inference remains unverified here.
+### 3. Build the full draft
 
-Review a sample before approving it or expanding. For presentations, **Review slide samples** opens the current selected slide artwork in Visual direction; the generic PDF fallback is not offered as that design sample. Presentations are intended for Canva, and written documents for Google Docs, using each creator's own verified connection. A native editor link is shown only for an actual created file. Guides and workbooks keep their PDF/text sample review. Presentation PDF and text packages are explicitly labeled content fallbacks with a different layout. Approved text is retained while new sections are drafted. Explicit revision and previous-approved-version controls let you correct work early. The final stage offers relevant companion products and grounded listing copy; creating an extra product remains your choice.
+Select **Build full draft** to complete the remaining agreed sections. Review the whole product afterward, instead of approving every section separately.
 
-For presentations, compare **Quiet editorial**, **Signal studio** and **Warm dimension** using the same lesson. Each direction shows a cover, teaching page and demanding example when one is present. Choose a direction, approve its rendered sample, then select **Create selected design in Canva**. With Canva connected to your own Codex account, the app imports that composition with editable text and native presenter notes, asks for normal one-call approval, and checks the returned file before exposing its editor link. The saved project retains the verified link; changed content or style labels it an earlier draft. Native Canva delivery through Claude is not implemented.
+The AI reuses your earlier answers and follows the approved plan, voice and design. It asks for missing details when they matter and explains how a necessary question will help your product.
 
-For written products and calculators, **Create in Google Docs** or **Create in Google Sheets** uses the creator's own connected Google Drive tools through the selected ChatGPT helper. This action authorizes one new private file, its scoped edits and readback; it does not publish, share, delete or change account settings. The app checks the actual native content/structure, or native formulas and calculated values, before showing a current verified editor link. A saved project keeps that source-bound receipt independently of PDF downloads; changes retain the earlier file while requiring a current creation. An unknown accepted creation is held instead of silently duplicated. Native Google delivery through Claude is not implemented; the app preserves that selection and explains the limitation.
+Ask for a small correction whenever you need one. Targeted edits preserve the rest of your approved work, and previous-approved-version controls help you recover an earlier version.
 
-Microsoft Office applications and downloads are not part of the user flow. Local packages contain PDF and Markdown/plain text, plus listing text when supplied. The presentation concepts and Canva transfer share their composition; the legacy PDF/text fallback has a different layout and is labeled as a content fallback. Your private working-brief checkpoint is kept out of the product ZIP; use Save project for a personal backup. Native cloud connections and results must actually work for the chosen account; a local file or setup instruction is not a completed cloud product. A PDF of a calculator is not a functioning spreadsheet. See TESTED.md for the separate live acceptance boundary.
+### 4. Review, improve and finish
 
-A webinar is a presentation with slide-by-slide presenter notes. Canva is its editor and presentation destination; verify the actual pages and native notes before treating cloud delivery as complete. The fallback PDF contains the audience-facing slides and Markdown retains the complete text and notes. Hosting, presenting and recording are separate from creating these files.
+The chosen format's quality check runs during creation. It corrects obvious issues within the approved scope and offers **up to three useful improvements**, with a reason for each.
+
+Open the actual finished file to check its content, layout and usability. You decide whether to apply further changes. Companion products and listing copy are optional.
+
+### Work comfortably in the app
+
+The conversation stays on the **left**. Your brief, outline, draft and next action appear on the **right**.
+
+- **Send a message:** Enter sends; Shift+Enter starts a new line.
+- **Add references:** attach or drag a supported file, paste an image, or include a public link.
+- **Ask questions:** request an explanation or example whenever something is unclear.
+- **Retry a failed reply:** use **Retry last message** to resend the original message and references.
+
+References inform the work without becoming claims about your own experience. Partial, unavailable and unsupported sources are labeled honestly.
+
+<details>
+<summary>Supported references and current upload limits</summary>
+
+Supported documents: PDF, DOCX, PPTX, XLSX, TXT, Markdown, CSV, TSV and JSON.
+
+| Reference limit | Current allowance |
+| --- | --- |
+| Project references | Up to 5 |
+| Ordinary files | 3 MiB each; 6 MiB per upload |
+| PNG/JPEG images | Up to 2; 512 KiB each |
+| Extracted text | 16,000 characters per source; 60,000 per project |
+
+These are app limits, separate from the ChatGPT website's upload system. Documents supply extracted text; scanned or incomplete sources may need another format. Public links supply readable page text.
+
+Original document files are not retained. A project backup keeps extracted text, source details and attached image inputs.
+
+</details>
+
+### Save your work and return later
+
+| Button | What it does |
+| --- | --- |
+| **New project** | Starts fresh while retaining earlier projects. |
+| **Save project** | Updates your private local project library. Autosave also runs as you work. |
+| **Open project** | Resumes a saved project, even if the app's local address changes. |
+| **Download a backup** | Downloads an optional JSON copy for moving work to another computer. |
+
+Normal saving creates **no files in Downloads**.
+
+### Make the product sound and look like you
+
+Use **Your preferences** to remember explicit voice, design and workflow instructions. You can edit, forget or pause learning at any time.
+
+The AI asks before saving an inferred preference. Preferences apply across your projects inside this app; project facts stay with their project. Your private profile is excluded from product downloads and is not automatically copied into your AI provider's account memory.
+
+### Open your finished product
+
+| Product | Where you review and edit it |
+| --- | --- |
+| Presentations and webinars | **Canva**, with editable slides and native presenter notes |
+| Written products | **Google Docs** |
+| Spreadsheets and calculators | **Google Sheets**, with working cells and formulas |
+
+**Native Canva and Google delivery currently require ChatGPT/Codex and your own connected accounts.** Native delivery through Claude is not implemented; the app explains this without changing your provider.
+
+Editor links appear after the actual file has been created and checked. Save/Open retains verified links; changed content or styling labels an older file as an earlier draft. An uncertain creation result is held for recovery rather than silently creating another copy.
+
+PDF and Markdown/plain-text copies are local fallbacks. Presentation fallbacks use a different layout from the Canva design, and a calculator PDF is not a working spreadsheet. Microsoft Office is not required.
+
+A webinar includes the presentation and slide-by-slide notes. Hosting, presenting and recording it happen separately.
+
+### Choose your AI
+
+Choose your provider, model and quality in the app. The app checks that exact selection before enabling Send or Retry and keeps successful checks quiet. It never silently substitutes another model.
+
+Your subscription access and usage limits apply, including the small model-access check. Claude requires an eligible Claude Code account; live Claude generation remains unverified in this beta. See [TESTED.md](TESTED.md) for model checks and current limitations.
 
 ## Manual start, if wanted
 
